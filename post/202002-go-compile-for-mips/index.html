@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.64.1" />
+
+
+<title>Building Go Programs for MIPS - 独行的蚂蚁 - 博客</title>
+<meta property="og:title" content="Building Go Programs for MIPS - 独行的蚂蚁 - 博客">
+
+
+
+
+  
+  <meta property="description" content="Example to show how to cross compile a Go program for MIPS">
+  
+
+
+
+
+<link rel="icon" href="https://zyfdegh.github.io/images/" type="image/x-icon"/>
+<link rel="stylesheet" href="https://zyfdegh.github.io/css/main.css" media="all">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Merriweather:400|Lato:400,400italic,700">
+
+    <script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+  MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+  });
+  MathJax.Hub.Queue(function() {
+    
+    
+    
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i < all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+
+  MathJax.Hub.Config({
+  
+  TeX: { equationNumbers: { autoNumber: "AMS" } }
+  });
+</script>
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="https://zyfdegh.github.io/" class="nav-logo">
+    <img src="https://zyfdegh.github.io/images/ant.png" 
+         width="50" 
+         height="50" 
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="https://zyfdegh.github.io/">Articles</a></li>
+    
+    <li><a href="https://zyfdegh.github.io/about/">About</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">5 min read</span>
+    
+
+    <h1 class="article-title">Building Go Programs for MIPS</h1>
+
+    
+    <span class="article-date">February 10, 2020</span>
+    
+
+    <div class="article-content">
+      <p>I&rsquo;ve got a Lenovo router last year, and I&rsquo;ve been always using it as a room AP to
+make the WiFi better. Recently, it&rsquo;s getting harder to bypass the Great Firewall
+so I flashed the router to OpenWrt and try to make it as a VPN client.</p>
+<h2 id="device-info">Device Info</h2>
+<p>After everything is done, the router now is a mini Linux server and I can SSH onto it.
+Here are some infomation of the device.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">openwrt:# uname -a
+Linux OpenWrt 4.14.151 <span style="color:#75715e">#0 Tue Nov 5 14:12:18 2019 mips GNU/Linux</span>
+
+openwrt:# cat /proc/cpuinfo
+system type	            : MediaTek MT7620A ver:2 eco:6
+machine	                : Lenovo Y1
+processor	            : <span style="color:#ae81ff">0</span>
+cpu model	            : MIPS 24KEc V5.0
+BogoMIPS	            : 385.84
+wait instruction	    : yes
+microsecond timers	    : yes
+tlb_entries	            : <span style="color:#ae81ff">32</span>
+extra interrupt vector	: yes
+hardware watchpoint	    : yes, count: 4, address/irw mask: <span style="color:#f92672">[</span>0x0ffc, 0x0ffc, 0x0ffb, 0x0ffb<span style="color:#f92672">]</span>
+isa	                    : mips1 mips2 mips32r1 mips32r2
+ASEs implemented	    : mips16 dsp
+shadow register sets	: <span style="color:#ae81ff">1</span>
+kscratch registers	    : <span style="color:#ae81ff">0</span>
+package	                : <span style="color:#ae81ff">0</span>
+core	                : <span style="color:#ae81ff">0</span>
+VCED exceptions	        : not available
+VCEI exceptions	        : not available
+
+openwrt:# df -h
+Filesystem                Size      Used Available Use% Mounted on
+/dev/root                 2.5M      2.5M         <span style="color:#ae81ff">0</span> 100% /rom
+tmpfs                    61.2M      1.3M     60.0M   2% /tmp
+/dev/mtdblock6           12.0M      1.5M     10.6M  12% /overlay
+overlayfs:/overlay       12.0M      1.5M     10.6M  12% /
+tmpfs                   512.0K         <span style="color:#ae81ff">0</span>    512.0K   0% /dev
+</code></pre></div><p>It has a MIPS architected CPU <em>MIPS 24KEc V5.0</em> and that&rsquo;s new for me. Next step
+I want to install <em><strong>v2ray</strong></em> on it, a proxy client. But I found the <a href="https://github.com/v2ray/v2ray-core/releases">official</a>
+released package is too big for my device. It takes about 20MB of a zipped binary.
+The <em>opkg</em> package manager doesn&rsquo;t provide v2ray either.</p>
+<h2 id="build-a-smaller-v2ray">Build A Smaller v2ray</h2>
+<p>So, it&rsquo;s time to do myself. I cloned the source code of <a href="https://github.com/v2ray/v2ray-core">v2ray</a>
+on my macOS, it&rsquo;s written in Go and must be easy to cross-compile.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">macbook:$ mkdir -p $GOPATH/src/v2ray.com/core
+macbook:$ git clone https://github.com/v2ray/v2ray-core $GOPATH/src/v2ray.com/core
+macbook:$ cd $GOPATH/src/v2ray.com/core/main
+</code></pre></div><p>(For go1.12+ with go mod, you can clone it to anywhere.)</p>
+<p>According to the GoMips <a href="https://github.com/golang/go/wiki/GoMips">wiki</a>, I ran the
+following command to compile.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">macbook:$ GOOS<span style="color:#f92672">=</span>linux GOARCH<span style="color:#f92672">=</span>mips GOMIPS<span style="color:#f92672">=</span>softfloat go build -o v2ray
+</code></pre></div><p>After a few minutes of retrieving packages, everything&rsquo;s OK, I got the MIPS binary.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">macbook:$ ls -alh v2ray
+-rwxr-xr-x  <span style="color:#ae81ff">1</span> ferdi  staff    21M Feb <span style="color:#ae81ff">10</span> 21:34 v2ray
+macbook:$ file v2ray
+v2ray: ELF 32-bit MSB executable, MIPS, MIPS32 version <span style="color:#ae81ff">1</span> <span style="color:#f92672">(</span>SYSV<span style="color:#f92672">)</span>, statically linked, stripped
+</code></pre></div><p>It&rsquo;s 21M and I guess this is the official way of building. To make the output smaller,
+I retry the build command with some parameters. (Although the router supports
+external USB stick, I don&rsquo;t have spare one and it&rsquo;s unnecessary.)</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">macbook:$ GOOS<span style="color:#f92672">=</span>linux GOARCH<span style="color:#f92672">=</span>mips GOMIPS<span style="color:#f92672">=</span>softfloat go build -trimpath -ldflags<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;-s -w&#34;</span> -o v2ray
+macbook:$ ls -alh v2ray
+-rwxr-xr-x  <span style="color:#ae81ff">1</span> ferdi  staff    15M Feb <span style="color:#ae81ff">10</span> 21:36 v2ray
+</code></pre></div><p>It&rsquo;s smaller now as 15M, but still can&rsquo;t fit my device since the router
+has only 10.6M left. Then I found a tool named <em><a href="https://upx.github.io/">upx</a></em>,
+which can compress a ELF file.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">macbook:$ upx -9 v2ray
+                       Ultimate Packer <span style="color:#66d9ef">for</span> eXecutables
+                          Copyright <span style="color:#f92672">(</span>C<span style="color:#f92672">)</span> <span style="color:#ae81ff">1996</span> - <span style="color:#ae81ff">2020</span>
+UPX 3.96        Markus Oberhumer, Laszlo Molnar &amp; John Reiser   Jan 23rd <span style="color:#ae81ff">2020</span>
+
+        File size         Ratio      Format      Name
+   --------------------   ------   -----------   -----------
+  <span style="color:#ae81ff">15728640</span> -&gt;   <span style="color:#ae81ff">5461384</span>   34.72%   linux/mips    v2ray
+
+Packed <span style="color:#ae81ff">1</span> file.
+
+macbook:$ ls -alh v2ray
+-rwxr-xr-x   <span style="color:#ae81ff">1</span> ferdi  staff   5.2M Feb <span style="color:#ae81ff">10</span> 21:36 v2ray
+</code></pre></div><p>It&rsquo;s acceptable now so I copied it to my router.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">macbook:$ scp v2ray root@192.168.99.1:/tmp
+</code></pre></div><p>On the router, it&rsquo;s there! The sad news is, I can&rsquo;t execute it.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">openwrt:$ cd /tmp <span style="color:#f92672">&amp;&amp;</span> ls -alh v2ray
+-rwxr-xr-x    <span style="color:#ae81ff">1</span> root     root        5.2M Feb <span style="color:#ae81ff">10</span> 13:44 v2ray
+openwrt:$ ./v2ray
+openwrt:$ ./v2ray: line 2: syntax error: unterminated quoted string
+</code></pre></div><p>Anything wrong? Do the <em>upx</em> make it corrupted? Or any of the build parameter wrong?
+I checked the build steps and try to figure that out what&rsquo;s going on.</p>
+<h2 id="try-with-a-helloworld-program">Try With A Helloworld Program</h2>
+<p>Then I tried a hello-world program without any build parameter and no upx, it also failed.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> (
+	<span style="color:#e6db74">&#34;fmt&#34;</span>
+)
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#e6db74">&#34;hello, mips&#34;</span>)
+}
+</code></pre></div><div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">macbook:$ GOOS<span style="color:#f92672">=</span>linux GOARCH<span style="color:#f92672">=</span>mips GOMIPS<span style="color:#f92672">=</span>softfloat go build -o hello
+macbook:$ scp hello root@192.168.99.1:/tmp
+
+<span style="color:#75715e"># on the router</span>
+openwrt:/tmp# ./hello
+./hello: line 1: syntax error: unexpected <span style="color:#e6db74">&#34;(&#34;</span>
+</code></pre></div><p>I started googling the problem, and here is my go info.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">macbook:$ go version
+go version go1.13.4 darwin/amd64
+
+macbook:$ go env
+GO111MODULE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;&#34;</span>
+GOARCH<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;amd64&#34;</span>
+GOBIN<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;&#34;</span>
+GOCACHE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/Users/ferdi/Library/Caches/go-build&#34;</span>
+GOENV<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/Users/ferdi/Library/Application Support/go/env&#34;</span>
+GOEXE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;&#34;</span>
+GOFLAGS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;&#34;</span>
+GOHOSTARCH<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;amd64&#34;</span>
+GOHOSTOS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;darwin&#34;</span>
+GONOPROXY<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;&#34;</span>
+GONOSUMDB<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;&#34;</span>
+GOOS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;darwin&#34;</span>
+GOPATH<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/Users/ferdi/GOPATH&#34;</span>
+GOPRIVATE<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;&#34;</span>
+GOPROXY<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;https://proxy.golang.org,direct&#34;</span>
+GOROOT<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/usr/local/go&#34;</span>
+GOSUMDB<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;sum.golang.org&#34;</span>
+GOTMPDIR<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;&#34;</span>
+GOTOOLDIR<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/usr/local/go/pkg/tool/darwin_amd64&#34;</span>
+GCCGO<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;gccgo&#34;</span>
+AR<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;ar&#34;</span>
+CC<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;clang&#34;</span>
+CXX<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;clang++&#34;</span>
+CGO_ENABLED<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;1&#34;</span>
+GOMOD<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;/Users/ferdi/GOPATH/src/v2ray.com/core/go.mod&#34;</span>
+CGO_CFLAGS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;-g -O2&#34;</span>
+CGO_CPPFLAGS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;&#34;</span>
+CGO_CXXFLAGS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;-g -O2&#34;</span>
+CGO_FFLAGS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;-g -O2&#34;</span>
+CGO_LDFLAGS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;-g -O2&#34;</span>
+PKG_CONFIG<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;pkg-config&#34;</span>
+GOGCCFLAGS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;-fPIC -m64 -pthread -fno-caret-diagnostics -Qunused-arguments -fmessage-length=0 -fdebug-prefix-map=/var/folders/zs/fbr4t1hd1p52lw7vfz084rcm0000gn/T/go-build718094728=/tmp/go-build -gno-record-gcc-switches -fno-common&#34;</span>
+</code></pre></div><h2 id="the-solution">The Solution</h2>
+<p>I even looked through the offical <a href="https://www.mips.com/downloads/the-mips32-24ke-core-family-high-performance-risc-cores-with-dsp-enhancements/">MIPS32® 24KE™ Core spec</a>
+and it&rsquo;s strange there&rsquo;s no indication of Big-Endian or Little-Endian.</p>
+<p>At last I solved the problem by setting <strong>GOARCH=mipsle</strong>, it works now.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">macbook:$ GOOS<span style="color:#f92672">=</span>linux GOARCH<span style="color:#f92672">=</span>mipsle GOMIPS<span style="color:#f92672">=</span>softfloat go build -o hello
+macbook:$ scp hello root@192.168.99.1:/tmp
+
+openwrt:/tmp# ./hello
+hello, mips
+</code></pre></div><p>The v2ray binary also works now,</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">macbook:$ GOOS<span style="color:#f92672">=</span>linux GOARCH<span style="color:#f92672">=</span>mipsle GOMIPS<span style="color:#f92672">=</span>softfloat go build -trimpath -ldflags<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;-s -w&#34;</span> -o v2ray
+macbook:$ scp v2ray root@192.168.99.1:/tmp
+
+openwrt:/tmp# ./v2ray --help
+Usage of ./v2ray:
+  -config string
+    	Config file <span style="color:#66d9ef">for</span> V2Ray.
+  -format string
+    	Format of input file. <span style="color:#f92672">(</span>default <span style="color:#e6db74">&#34;json&#34;</span><span style="color:#f92672">)</span>
+  -test
+    	Test config file only, without launching V2Ray server.
+  -version
+    	Show current version of V2Ray.
+</code></pre></div><p>But the upx compressed one hang on command line, let&rsquo;s skip this.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">root@OpenWrt:/tmp# ./v2ray --help
+&lt;hang, nothing prints&gt;
+</code></pre></div><h2 id="conslusion">Conslusion</h2>
+<p>If you also have trouble building programs for a different operating system
+and architecture, remember the first step is to determine the exact target
+device information. Some tools may be helpful.</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh"><span style="color:#75715e"># check big-endian/little-endian</span>
+$ lscpu | grep <span style="color:#e6db74">&#34;Byte Order&#34;</span>
+
+<span style="color:#75715e"># check go supported OS/Arch</span>
+$ go tool dist list | grep mips
+linux/mips
+linux/mips64
+linux/mips64le
+linux/mipsle
+</code></pre></div><p>The router above is <em>newifi mini Y1</em> and labeled <em>Model R6830</em> on the backside.
+It has 16M ROM along with 128MB of memory, and it&rsquo;s Okay to install and run
+OpenWrt. I searched the device on <a href="https://openwrt.org/toh/start">openwrt.org</a> and
+luckily it&rsquo;s fully supported. So I followed the <a href="%60https://openwrt.org/toh/lenovo/lenovo_y1_v1%60">instruction page</a>
+and get the router flashed!
+If you&rsquo;re insterested on how to flash the router, just leave a comment below and
+I may write another post on how to install and configure OpenWrt.</p>
+<p><strong>References</strong></p>
+<p>[1] StackOverflow: Writing and Compiling Program For OpenWrt.
+<a href="https://stackoverflow.com/questions/55878437/writing-and-compiling-program-for-openwrt/60161561#60161561">https://stackoverflow.com/questions/55878437/writing-and-compiling-program-for-openwrt/60161561#60161561</a></p>
+<p>[2] Wikipedia: Endianness
+<a href="https://en.wikipedia.org/wiki/Endianness">https://en.wikipedia.org/wiki/Endianness</a></p>
+
+    </div>
+  </article>
+
+  <div id="disqus_thread"></div>
+<script type="application/javascript">
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "zyfdegh" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="https://zyfdegh.github.io/images/hugo-logo.png" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+
+    
+  </body>
+</html>
+

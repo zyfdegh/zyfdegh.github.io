@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.64.1" />
+
+
+<title>Evernote 笔记整理 - Linux 中安全设置 - 独行的蚂蚁 - 博客</title>
+<meta property="og:title" content="Evernote 笔记整理 - Linux 中安全设置 - 独行的蚂蚁 - 博客">
+
+
+
+
+  
+
+
+
+
+<link rel="icon" href="https://zyfdegh.github.io/images/" type="image/x-icon"/>
+<link rel="stylesheet" href="https://zyfdegh.github.io/css/main.css" media="all">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Merriweather:400|Lato:400,400italic,700">
+
+    <script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+  MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+  });
+  MathJax.Hub.Queue(function() {
+    
+    
+    
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i < all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+
+  MathJax.Hub.Config({
+  
+  TeX: { equationNumbers: { autoNumber: "AMS" } }
+  });
+</script>
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="https://zyfdegh.github.io/" class="nav-logo">
+    <img src="https://zyfdegh.github.io/images/ant.png" 
+         width="50" 
+         height="50" 
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="https://zyfdegh.github.io/">Articles</a></li>
+    
+    <li><a href="https://zyfdegh.github.io/about/">About</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">1 min read</span>
+    
+
+    <h1 class="article-title">Evernote 笔记整理 - Linux 中安全设置</h1>
+
+    
+    <span class="article-date">June 9, 2017</span>
+    
+
+    <div class="article-content">
+      <h1 id="禁止密码登录">禁止密码登录</h1>
+<p>** 禁用前先添加公钥 **</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">vi /etc/ssh/sshd_config
+
+<span style="color:#75715e"># 查找并修改下面两项</span>
+PasswordAuthentication no  <span style="color:#75715e"># 禁止使用基于口令认证的方式登陆</span>
+PubkeyAuthentication yes  <span style="color:#75715e"># 允许使用基于密钥认证的方式登陆</span>
+
+systemctl restart sshd
+</code></pre></div><h1 id="禁止-ping">禁止 ping</h1>
+<p>echo 1 &gt; /proc/sys/net/ipv4/icmp_echo_ignore_all</p>
+<p>恢复
+echo 0 &gt; /proc/sys/net/ipv4/icmp_echo_ignore_all</p>
+
+    </div>
+  </article>
+
+  <div id="disqus_thread"></div>
+<script type="application/javascript">
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "zyfdegh" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="https://zyfdegh.github.io/images/hugo-logo.png" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+
+    
+  </body>
+</html>
+

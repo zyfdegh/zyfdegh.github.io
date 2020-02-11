@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>info on 独行的蚂蚁 - 博客</title>
+    <link>https://zyfdegh.github.io/tags/info/</link>
+    <description>Recent content in info on 独行的蚂蚁 - 博客</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sun, 08 Jan 2017 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="https://zyfdegh.github.io/tags/info/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title></title>
+      <link>https://zyfdegh.github.io/about/</link>
+      <pubDate>Sun, 08 Jan 2017 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/about/</guid>
+      <description>Me    Key Value     Penname 独行的蚂蚁   Location Nanjing, China   Skills Golang, Docker, Linux etc.   GitHub https://github.com/zyfdegh   Twitter https://twitter.com/VeayoX   Email echo enlmZGVnZ0BnbWFpbC5jb20K | base64 -d    Site Hugo with hugo-lithium-theme.
+Source: github.com/zyfdegh/blog
+Controbutions are welcome!</description>
+    </item>
+    
+  </channel>
+</rss>

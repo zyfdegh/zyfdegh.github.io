@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.64.1" />
+
+
+<title>[译] 炫酷的 macOS Mojave 动态时移壁纸是怎么实现的？ - 独行的蚂蚁 - 博客</title>
+<meta property="og:title" content="[译] 炫酷的 macOS Mojave 动态时移壁纸是怎么实现的？ - 独行的蚂蚁 - 博客">
+
+
+
+
+  
+
+
+
+
+<link rel="icon" href="https://zyfdegh.github.io/images/" type="image/x-icon"/>
+<link rel="stylesheet" href="https://zyfdegh.github.io/css/main.css" media="all">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Merriweather:400|Lato:400,400italic,700">
+
+    <script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+  MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+  });
+  MathJax.Hub.Queue(function() {
+    
+    
+    
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i < all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+
+  MathJax.Hub.Config({
+  
+  TeX: { equationNumbers: { autoNumber: "AMS" } }
+  });
+</script>
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="https://zyfdegh.github.io/" class="nav-logo">
+    <img src="https://zyfdegh.github.io/images/ant.png" 
+         width="50" 
+         height="50" 
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="https://zyfdegh.github.io/">Articles</a></li>
+    
+    <li><a href="https://zyfdegh.github.io/about/">About</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">1 min read</span>
+    
+
+    <h1 class="article-title">[译] 炫酷的 macOS Mojave 动态时移壁纸是怎么实现的？</h1>
+
+    
+    <span class="article-date">September 29, 2018</span>
+    
+
+    <div class="article-content">
+      <p>原文：<a href="http://www.idownloadblog.com/2018/06/06/macos-mojave-dynamic-wallpaper-desktop/">《How macOS Mojave’s awesome time-shifting Dynamic Desktop wallpapers work》</a><br>
+作者：Christian Zibreg<br>
+时间：2018/06/06</p>
+<!-- raw HTML omitted -->
+<p>除了抢眼的主要功能外，macOS Mojave 还多了个动态桌面的特性，它能够按照一天中的时间自动选择适合的壁纸。</p>
+<p>本文要点：</p>
+<ul>
+<li>动态桌面是 macOS Mojave 10.14 中新功能</li>
+<li>Mojave 自带了两款动态壁纸：Mojave 沙漠和日光度图</li>
+<li>这些壁纸会从白天到黑夜无缝地切换</li>
+<li>壁纸打包在 .HEIC 文件中，含多个图</li>
+<li>用户无法创作自己的动态时移壁纸</li>
+</ul>
+<h2 id="时移桌面壁纸">时移桌面壁纸</h2>
+<p>由于需要知道你住在哪，动态桌面需要位置服务，就像夜览模式也需要定位才能知道日出、日落时间一样。
+“动态桌面根据您的位置更换一天中的图片”，特性说明上写道。</p>
+<!-- raw HTML omitted -->
+<p>这几年来，macOS 有个选项，能让你每次登录到系统或者唤醒电脑时，更换桌面壁纸图片。</p>
+<p>你还可以设定每隔几分钟自动切换壁纸，或者每几小时、几天这样。这只是个简单的循环，按照你的选择去图库里切换。
+有了动态桌面，这些壁纸能巧妙并且渐进地更改图片，以适合你的位置。</p>
+<h2 id="如何试用动态桌面">如何试用动态桌面</h2>
+<p>语言已经无法恰如其分地形容动态桌面之妙了。最好的办法是你亲身体验一下，去设定一个动态壁纸，还有屏幕节能设定。</p>
+<p>教程：<a href="http://www.idownloadblog.com/2018/05/21/tutorial-night-shift-for-mac/">《How to use Nigh Shift for Mac》</a></p>
+<p>动态桌面需要特殊制作的壁纸。</p>
+<h2 id="动态壁纸是怎么打包的">动态壁纸是怎么打包的？</h2>
+<p>前面提到的，macOS Mojave 带了两款动态壁纸，名字都含有 “动态”。他们都是与 Mojave 浅色、深色模式相配套的主题，
+其中一个是沙漠亮暗色主题。</p>
+<p>所以时移桌面的秘诀在哪？</p>
+<p>动态壁纸使用 Apple 的 HEIF 格式的图像文件，省空间，拓展名是 .HEIC。它是 2017 年发布的，用在 iOS 11 还有 macOS High Sierra 上。想要看看所有高分辨率壁纸的话，打开访达（Finder）点击 “转到” 菜单，然后点 “前往文件夹&hellip;” 选项。</p>
+<p>输入下面的路径，按回车：</p>
+<p><code>/Library/Desktop Pictures</code></p>
+<p>默认的 Mojave 动态壁纸是个 114MB 的 HEIC 文件。</p>
+<p>（译注：Mojave 10.14 正式版中为 134.8MB）</p>
+<!-- raw HTML omitted -->
+<p>通过比较，Mojave 中其他所有壁纸都存储在常见的 JPEG 文件里（每个文件大约 10MB）。Apple 目前对想要自己创建动态壁纸的人，
+还没提供说明。</p>
+<h2 id="hello-heic">Hello, HEIC！</h2>
+<p>所以这个 114MB 的 HEIC 文件是如何工作的？</p>
+<p>Apple 在同一地点每隔一段时间拍摄了从日出到黄昏的照片，然后打包为从白天到夜晚平滑过渡的图像。感谢爱好者，我们知道了
+Mojave 的动态壁纸的 HEIC 文件中包含了 16 层图像。</p>
+<p>在这里可以找到每张图：<a href="https://github.com/xtai/mojave-dynamic-heic/blob/master/README.md">GitHub 可下载的 JPG 图</a></p>
+<!-- raw HTML omitted -->
+<p>（译注：此段略有修改，测试版 Mojave 还不支持预览 HEIC 文件，现已支持）</p>
+<p>还不太清楚用户是不是能为 Mojave 创建自己的动态壁纸文件，也不知道是不是需要特殊的软件工具，或者 Apple 是不是
+计划详细说明动态桌面的支持。</p>
+<h2 id="总结">总结</h2>
+<p>我是 macOS Mojave 动态桌面的大大&hellip;大粉丝。</p>
+<p>配合新的<a href="http://www.idownloadblog.com/2018/06/13/mac-dark-mode-tutorial/">超赞的暗色模式</a>，动态桌面改变了用户交互界面，也在一整天中不断改变你的壁纸。</p>
+<p>对动态桌面有何想法？</p>
+<p>评论里说说吧！</p>
+
+    </div>
+  </article>
+
+  <div id="disqus_thread"></div>
+<script type="application/javascript">
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "zyfdegh" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="https://zyfdegh.github.io/images/hugo-logo.png" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+
+    
+  </body>
+</html>
+

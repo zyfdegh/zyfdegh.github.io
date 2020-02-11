@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.64.1" />
+
+
+<title>Golang Concurrency with HTTP Example - 独行的蚂蚁 - 博客</title>
+<meta property="og:title" content="Golang Concurrency with HTTP Example - 独行的蚂蚁 - 博客">
+
+
+
+
+  
+  <meta property="description" content="Benchmark server API with goroutine, channel, waitgroup">
+  
+
+
+
+
+<link rel="icon" href="https://zyfdegh.github.io/images/" type="image/x-icon"/>
+<link rel="stylesheet" href="https://zyfdegh.github.io/css/main.css" media="all">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Merriweather:400|Lato:400,400italic,700">
+
+    <script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+  MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+  });
+  MathJax.Hub.Queue(function() {
+    
+    
+    
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i < all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+
+  MathJax.Hub.Config({
+  
+  TeX: { equationNumbers: { autoNumber: "AMS" } }
+  });
+</script>
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="https://zyfdegh.github.io/" class="nav-logo">
+    <img src="https://zyfdegh.github.io/images/ant.png" 
+         width="50" 
+         height="50" 
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="https://zyfdegh.github.io/">Articles</a></li>
+    
+    <li><a href="https://zyfdegh.github.io/about/">About</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">1 min read</span>
+    
+
+    <h1 class="article-title">Golang Concurrency with HTTP Example</h1>
+
+    
+    <span class="article-date">March 6, 2017</span>
+    
+
+    <div class="article-content">
+      <h1 id="summary">Summary</h1>
+<p>I have a server running on remote. I want to simply benchmark on one API, and get the
+average response time of that API. So I simply wrote a few lines of a Golang programme.</p>
+<h1 id="i-want-to-benchmark">I want to benchmark</h1>
+<p>Call server API concurrently(about 1000 times at once) and see how long it takes.</p>
+<h1 id="why-not-use-apache-ab">Why not use Apache ab?</h1>
+<p>Well, <a href="https://httpd.apache.org/docs/2.4/programs/ab.html">Apache HTTP server Benchmarking tool</a> is powerful.
+But It is a bit complex to learn and use, I want to do it by myself.</p>
+<h1 id="source-codes">Source codes</h1>
+<p>Github <a href="https://github.com/zyfdegh/iotserver-apibench.git">zyfdegh/iotserver-apibench</a></p>
+
+    </div>
+  </article>
+
+  <div id="disqus_thread"></div>
+<script type="application/javascript">
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "zyfdegh" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="https://zyfdegh.github.io/images/hugo-logo.png" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+
+    
+  </body>
+</html>
+
