@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.64.1" />
+
+
+<title>系统调用：从获取系统时间戳开始 - 独行的蚂蚁 - 博客</title>
+<meta property="og:title" content="系统调用：从获取系统时间戳开始 - 独行的蚂蚁 - 博客">
+
+
+
+
+  
+  <meta property="description" content="想知道 Go 中执行 time.Now() 如何获得系统时间">
+  
+
+
+
+
+<link rel="icon" href="https://zyfdegh.github.io/images/" type="image/x-icon"/>
+<link rel="stylesheet" href="https://zyfdegh.github.io/css/main.css" media="all">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Merriweather:400|Lato:400,400italic,700">
+
+    <script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+  MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+  });
+  MathJax.Hub.Queue(function() {
+    
+    
+    
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i < all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+
+  MathJax.Hub.Config({
+  
+  TeX: { equationNumbers: { autoNumber: "AMS" } }
+  });
+</script>
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="https://zyfdegh.github.io/" class="nav-logo">
+    <img src="https://zyfdegh.github.io/images/ant.png" 
+         width="50" 
+         height="50" 
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="https://zyfdegh.github.io/">Articles</a></li>
+    
+    <li><a href="https://zyfdegh.github.io/about/">About</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">10 min read</span>
+    
+
+    <h1 class="article-title">系统调用：从获取系统时间戳开始</h1>
+
+    
+    <span class="article-date">May 31, 2020</span>
+    
+
+    <div class="article-content">
+      <p>想知道 Go 中执行 time.Now() 如何获得系统时间吗? 在调用时，发生了什么。这不是个简单的问题。</p>
+<h2 id="先来发问">先来发问</h2>
+<p>来看这样一段代码</p>
+<p>main.go</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> (
+        <span style="color:#e6db74">&#34;time&#34;</span>
+)
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+        println(<span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">Now</span>().<span style="color:#a6e22e">Unix</span>())
+}
+</code></pre></div><p>运行，在控制台得到当前时间戳，如 1617174901。</p>
+<!-- raw HTML omitted -->
+<p>那么运行时，究竟发生了什么？</p>
+<p>本文档将一步一步，从 Go 源码中 Now() 函数开始剖析，到 Go 如何调用汇编，再到系统调用过程，
+解释编程语言如何与操作系统互动。</p>
+<h2 id="go-源码分析">Go 源码分析</h2>
+<p>先找 Go 源码，time.Now() 定义在</p>
+<p>src/time/time.go</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// Now returns the current local time.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">Now</span>() <span style="color:#a6e22e">Time</span> {
+    <span style="color:#a6e22e">sec</span>, <span style="color:#a6e22e">nsec</span>, <span style="color:#a6e22e">mono</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">now</span>()
+    <span style="color:#75715e">//-- ... 转换并返回 --//
+</span><span style="color:#75715e"></span>}
+</code></pre></div><p>时间来自小写 <code>now()</code> 函数，其定义为</p>
+<p>src/time/time.go</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// Provided by package runtime.
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">now</span>() (<span style="color:#a6e22e">sec</span> <span style="color:#66d9ef">int64</span>, <span style="color:#a6e22e">nsec</span> <span style="color:#66d9ef">int32</span>, <span style="color:#a6e22e">mono</span> <span style="color:#66d9ef">int64</span>)
+</code></pre></div><p>这个函数没有方法体，只提供函数名与签名，是由 Go 之外的语言实现的。
+Go 中对函数定义的说明，见 <a href="https://golang.org/ref/spec#Function_declarations">https://golang.org/ref/spec#Function_declarations</a></p>
+<blockquote>
+<p>A function declaration may omit the body. Such a declaration provides the signature
+for a function implemented outside Go, such as an assembly routine.</p>
+</blockquote>
+<blockquote>
+<p>文档中用的 Go 版本为 1.15.2</p>
+</blockquote>
+<p>注释写了 now() 由 runtime 包提供，那到 runtime 包去找</p>
+<p>没找到 <code>func now()</code>，但有 <code>func time_now()</code>，是这个吗？</p>
+<p>src/runtime/timestub.go</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// Declarations for operating systems implementing time.now
+</span><span style="color:#75715e"></span><span style="color:#75715e">// indirectly, in terms of walltime and nanotime assembly.
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">// +build !windows
+</span><span style="color:#75715e"></span>
+<span style="color:#f92672">package</span> <span style="color:#a6e22e">runtime</span>
+
+<span style="color:#f92672">import</span> <span style="color:#a6e22e">_</span> <span style="color:#e6db74">&#34;unsafe&#34;</span> <span style="color:#75715e">// for go:linkname
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">//go:linkname time_now time.now
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">time_now</span>() (<span style="color:#a6e22e">sec</span> <span style="color:#66d9ef">int64</span>, <span style="color:#a6e22e">nsec</span> <span style="color:#66d9ef">int32</span>, <span style="color:#a6e22e">mono</span> <span style="color:#66d9ef">int64</span>) {
+	<span style="color:#a6e22e">sec</span>, <span style="color:#a6e22e">nsec</span> = <span style="color:#a6e22e">walltime</span>()
+	<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">sec</span>, <span style="color:#a6e22e">nsec</span>, <span style="color:#a6e22e">nanotime</span>()
+}
+</code></pre></div><p>那怎么确定是这个 <code>func time_now()</code> 呢？</p>
+<p>看上面用了条特殊注释 <code>//go:linkname</code> ，称为 Compiler Directives，更多编译器指令见
+<a href="https://golang.org/pkg/cmd/compile/">https://golang.org/pkg/cmd/compile/</a></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">//go:linkname localname [importpath.name]
+</span></code></pre></div><blockquote>
+<p>the //go:linkname directive instructs the compiler to use “importpath.name” as the object file
+symbol name for the variable or function declared as “localname” in the source code.</p>
+</blockquote>
+<p>好，现在知道 <code>time.now</code> 是 <code>time_now</code> 对象文件的符号名，也就是 <code>runtime.time_now</code> 返回了时间。
+注意 runtime 包中有两个 <code>func time_now()</code>，另一个是这样</p>
+<p>src/runtime/timeasm.go</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// Declarations for operating systems implementing time.now directly in assembly.
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">// +build windows
+</span><span style="color:#75715e"></span>
+<span style="color:#f92672">package</span> <span style="color:#a6e22e">runtime</span>
+
+<span style="color:#f92672">import</span> <span style="color:#a6e22e">_</span> <span style="color:#e6db74">&#34;unsafe&#34;</span>
+
+<span style="color:#75715e">//go:linkname time_now time.now
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">time_now</span>() (<span style="color:#a6e22e">sec</span> <span style="color:#66d9ef">int64</span>, <span style="color:#a6e22e">nsec</span> <span style="color:#66d9ef">int32</span>, <span style="color:#a6e22e">mono</span> <span style="color:#66d9ef">int64</span>)
+</code></pre></div><p>跟前一个文件 <code>src/runtime/timestub.go</code> 不同之处在于，顶部的 Build constraints 不一样</p>
+<p>第一个</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// +build !windows
+</span></code></pre></div><p>第二个</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// +build windows
+</span></code></pre></div><p>不同 OS 构建时，用了不同文件。更多 Build constraints 见 <a href="https://golang.org/cmd/go/#hdr-Build_constraints">https://golang.org/cmd/go/#hdr-Build_constraints</a></p>
+<p>那先来看非 Windows 系统，也就是含 Linux 的，后者开源好查</p>
+<p>src/runtime/timestub.go</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">
+<span style="color:#75715e">// Declarations for operating systems implementing time.now
+</span><span style="color:#75715e"></span><span style="color:#75715e">// indirectly, in terms of walltime and nanotime assembly.
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">// +build !windows
+</span><span style="color:#75715e"></span>
+<span style="color:#f92672">package</span> <span style="color:#a6e22e">runtime</span>
+
+<span style="color:#f92672">import</span> <span style="color:#a6e22e">_</span> <span style="color:#e6db74">&#34;unsafe&#34;</span> <span style="color:#75715e">// for go:linkname
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">//go:linkname time_now time.now
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">time_now</span>() (<span style="color:#a6e22e">sec</span> <span style="color:#66d9ef">int64</span>, <span style="color:#a6e22e">nsec</span> <span style="color:#66d9ef">int32</span>, <span style="color:#a6e22e">mono</span> <span style="color:#66d9ef">int64</span>) {
+    <span style="color:#75715e">//-- 通过 walltime() 返回秒、纳秒 --//
+</span><span style="color:#75715e"></span>    <span style="color:#a6e22e">sec</span>, <span style="color:#a6e22e">nsec</span> = <span style="color:#a6e22e">walltime</span>()
+	<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">sec</span>, <span style="color:#a6e22e">nsec</span>, <span style="color:#a6e22e">nanotime</span>()
+}
+</code></pre></div><p>注释写：当前时间 time.now 是操作系统实现的，是通过 walltime, nanotime 汇编，这里是间接的定义。</p>
+<p>先看 <code>walltime()</code>，它返回了 sec, nsec，最后 <code>nanotime()</code> 返回了一个值，叫做 mono</p>
+<p>看变量名 sec 是秒，nsec 大胆推测是纳秒，mono 应该是不变的、一直自增的时间，先放一放。</p>
+<p>那么秒、纳秒怎么来的？再跳转到定义</p>
+<p>src/runtime/time_nofake.go</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">walltime</span>() (<span style="color:#a6e22e">sec</span> <span style="color:#66d9ef">int64</span>, <span style="color:#a6e22e">nsec</span> <span style="color:#66d9ef">int32</span>) {
+	<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">walltime1</span>()
+}
+</code></pre></div><p>调用了 <code>walltime1()</code>，再跳，由于当前机器是 macOS，跳到了 <code>src/runtime/sys_darwin.go</code> 中。</p>
+<p>实际在 runtime 目录检索 walltime1，找到多个 <code>.go</code> 文件中声明了该函数，还有很多 <code>.s</code> 文件包含这个函数名。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">runtime$ grep -r <span style="color:#e6db74">&#39;walltime1&#39;</span> .
+./sys_linux_mips64x.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_linux_mips64x.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>,NOSPLIT,$16-12
+./sys_openbsd_amd64.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_openbsd_amd64.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>, NOSPLIT, $32
+./sys_linux_amd64.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_linux_amd64.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>,NOSPLIT,$16-12
+./sys_netbsd_arm.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_netbsd_arm.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>, NOSPLIT, $32
+./sys_netbsd_amd64.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_netbsd_amd64.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>, NOSPLIT, $32
+./sys_linux_riscv64.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_linux_riscv64.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>,NOSPLIT,$24-12
+./sys_openbsd_386.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_openbsd_386.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>, NOSPLIT, $32
+./sys_plan9_386.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_plan9_386.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>,NOSPLIT,$8-12
+./sys_linux_s390x.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_linux_s390x.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>,NOSPLIT,$16
+./sys_linux_mipsx.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_linux_mipsx.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>,NOSPLIT,$8-12
+./sys_linux_386.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_linux_386.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>, NOSPLIT, $8-12
+./sys_openbsd_arm.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_openbsd_arm.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>, NOSPLIT, $32
+./sys_plan9_arm.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_plan9_arm.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>,NOSPLIT,$12-12
+./vdso_freebsd.go:func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+./timestub2.go:func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./os_windows.go:// walltime1 isn<span style="color:#ae81ff">\&#39;</span>t implemented on Windows, but will never be called.
+./os_windows.go:func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_linux_arm.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>,NOSPLIT,$8-12
+./sys_dragonfly_amd64.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_dragonfly_amd64.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>, NOSPLIT, $32
+./time_nofake.go:       <span style="color:#66d9ef">return</span> walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span>
+./sys_netbsd_386.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_netbsd_386.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>, NOSPLIT, $32
+./sys_plan9_amd64.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_plan9_amd64.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>,NOSPLIT,$8-12
+./sys_linux_arm64.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_linux_arm64.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>,NOSPLIT,$24-12
+./os_aix.go:func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+./sys_openbsd_arm64.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_openbsd_arm64.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>, NOSPLIT, $32
+./os3_solaris.go:func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+./sys_netbsd_arm64.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_netbsd_arm64.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>, NOSPLIT, $32
+./sys_linux_ppc64x.s:// func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>sec int64, nsec int32<span style="color:#f92672">)</span>
+./sys_linux_ppc64x.s:TEXT runtime·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>,NOSPLIT,$16-12
+./sys_wasm.s:TEXT ·walltime1<span style="color:#f92672">(</span>SB<span style="color:#f92672">)</span>, NOSPLIT, $0
+./sys_darwin.go:func walltime1<span style="color:#f92672">(</span><span style="color:#f92672">)</span> <span style="color:#f92672">(</span>int64, int32<span style="color:#f92672">)</span> <span style="color:#f92672">{</span>
+</code></pre></div><p>看了下几个 <code>.go</code> 文件，多数都是空的声明，比如</p>
+<p>src/runtime/timestub2.go</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// +build !darwin
+</span><span style="color:#75715e"></span><span style="color:#75715e">// +build !windows
+</span><span style="color:#75715e"></span><span style="color:#75715e">// +build !freebsd
+</span><span style="color:#75715e"></span><span style="color:#75715e">// +build !aix
+</span><span style="color:#75715e"></span><span style="color:#75715e">// +build !solaris
+</span><span style="color:#75715e"></span>
+<span style="color:#f92672">package</span> <span style="color:#a6e22e">runtime</span>
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">walltime1</span>() (<span style="color:#a6e22e">sec</span> <span style="color:#66d9ef">int64</span>, <span style="color:#a6e22e">nsec</span> <span style="color:#66d9ef">int32</span>)
+</code></pre></div><p>如上所说，这个没有 body 的函数，是在别的语言实现的。根据上面的 Build constraints，知道 linux 是用的这个。</p>
+<h2 id="先铺垫下-go-与汇编">先铺垫下 Go 与汇编</h2>
+<p>继续分析之前，需要温习一下汇编基础，并了解 Go 如何调用汇编代码。</p>
+<!-- raw HTML omitted -->
+<h2 id="汇编代码分析">汇编代码分析</h2>
+<p>还是回到获取时间，Linux amd64 对应的汇编代码在 <code>sys_linux_arm64.s</code>，里面含有 <code>walltime1</code>。是这样一段汇编代码</p>
+<p>src/runtime/sys_linux_arm64.s</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// func walltime1() (sec int64, nsec int32)
+</span><span style="color:#75715e"></span><span style="color:#75715e">// non-zero frame-size means bp is saved and restored
+</span><span style="color:#75715e"></span><span style="color:#a6e22e">TEXT</span> <span style="color:#a6e22e">runtime</span><span style="color:#960050;background-color:#1e0010">·</span><span style="color:#a6e22e">walltime1</span>(<span style="color:#a6e22e">SB</span>),<span style="color:#a6e22e">NOSPLIT</span>,<span style="color:#960050;background-color:#1e0010">$</span><span style="color:#ae81ff">16</span><span style="color:#f92672">-</span><span style="color:#ae81ff">12</span>
+	<span style="color:#75715e">// We don&#39;t know how much stack space the VDSO code will need,
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// so switch to g0.
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// In particular, a kernel configured with CONFIG_OPTIMIZE_INLINING=n
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// and hardening can use a full page of stack space in gettime_sym
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// due to stack probes inserted to avoid stack/heap collisions.
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// See issue #20427.
+</span><span style="color:#75715e"></span>
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">SP</span>, <span style="color:#a6e22e">BP</span>	<span style="color:#75715e">// Save old SP; BP unchanged by C code.
+</span><span style="color:#75715e"></span>
+	<span style="color:#a6e22e">get_tls</span>(<span style="color:#a6e22e">CX</span>)
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">g</span>(<span style="color:#a6e22e">CX</span>), <span style="color:#a6e22e">AX</span>
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">g_m</span>(<span style="color:#a6e22e">AX</span>), <span style="color:#a6e22e">BX</span> <span style="color:#75715e">// BX unchanged by C code.
+</span><span style="color:#75715e"></span>
+	<span style="color:#75715e">// Set vdsoPC and vdsoSP for SIGPROF traceback.
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// Save the old values on stack and restore them on exit,
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// so this function is reentrant.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">m_vdsoPC</span>(<span style="color:#a6e22e">BX</span>), <span style="color:#a6e22e">CX</span>
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">m_vdsoSP</span>(<span style="color:#a6e22e">BX</span>), <span style="color:#a6e22e">DX</span>
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">CX</span>, <span style="color:#ae81ff">0</span>(<span style="color:#a6e22e">SP</span>)
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">DX</span>, <span style="color:#ae81ff">8</span>(<span style="color:#a6e22e">SP</span>)
+
+	<span style="color:#a6e22e">LEAQ</span>	<span style="color:#a6e22e">sec</span><span style="color:#f92672">+</span><span style="color:#ae81ff">0</span>(<span style="color:#a6e22e">FP</span>), <span style="color:#a6e22e">DX</span>
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#f92672">-</span><span style="color:#ae81ff">8</span>(<span style="color:#a6e22e">DX</span>), <span style="color:#a6e22e">CX</span>
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">CX</span>, <span style="color:#a6e22e">m_vdsoPC</span>(<span style="color:#a6e22e">BX</span>)
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">DX</span>, <span style="color:#a6e22e">m_vdsoSP</span>(<span style="color:#a6e22e">BX</span>)
+
+	<span style="color:#a6e22e">CMPQ</span>	<span style="color:#a6e22e">AX</span>, <span style="color:#a6e22e">m_curg</span>(<span style="color:#a6e22e">BX</span>)	<span style="color:#75715e">// Only switch if on curg.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">JNE</span>	<span style="color:#a6e22e">noswitch</span>
+
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">m_g0</span>(<span style="color:#a6e22e">BX</span>), <span style="color:#a6e22e">DX</span>
+	<span style="color:#a6e22e">MOVQ</span>	(<span style="color:#a6e22e">g_sched</span><span style="color:#f92672">+</span><span style="color:#a6e22e">gobuf_sp</span>)(<span style="color:#a6e22e">DX</span>), <span style="color:#a6e22e">SP</span>	<span style="color:#75715e">// Set SP to g0 stack
+</span><span style="color:#75715e"></span>
+<span style="color:#a6e22e">noswitch</span>:
+	<span style="color:#a6e22e">SUBQ</span>	<span style="color:#960050;background-color:#1e0010">$</span><span style="color:#ae81ff">16</span>, <span style="color:#a6e22e">SP</span>		<span style="color:#75715e">// Space for results
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">ANDQ</span>	<span style="color:#960050;background-color:#1e0010">$</span><span style="color:#960050;background-color:#1e0010">~</span><span style="color:#ae81ff">15</span>, <span style="color:#a6e22e">SP</span>	<span style="color:#75715e">// Align for C code
+</span><span style="color:#75715e"></span>
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">runtime</span><span style="color:#960050;background-color:#1e0010">·</span><span style="color:#a6e22e">vdsoClockgettimeSym</span>(<span style="color:#a6e22e">SB</span>), <span style="color:#a6e22e">AX</span>
+	<span style="color:#a6e22e">CMPQ</span>	<span style="color:#a6e22e">AX</span>, <span style="color:#960050;background-color:#1e0010">$</span><span style="color:#ae81ff">0</span>
+	<span style="color:#a6e22e">JEQ</span>	<span style="color:#a6e22e">fallback</span>
+	<span style="color:#a6e22e">MOVL</span>	<span style="color:#960050;background-color:#1e0010">$</span><span style="color:#ae81ff">0</span>, <span style="color:#a6e22e">DI</span> <span style="color:#75715e">// CLOCK_REALTIME
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">LEAQ</span>	<span style="color:#ae81ff">0</span>(<span style="color:#a6e22e">SP</span>), <span style="color:#a6e22e">SI</span>
+	<span style="color:#a6e22e">CALL</span>	<span style="color:#a6e22e">AX</span>
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#ae81ff">0</span>(<span style="color:#a6e22e">SP</span>), <span style="color:#a6e22e">AX</span>	<span style="color:#75715e">// sec
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#ae81ff">8</span>(<span style="color:#a6e22e">SP</span>), <span style="color:#a6e22e">DX</span>	<span style="color:#75715e">// nsec
+</span><span style="color:#75715e"></span><span style="color:#a6e22e">ret</span>:
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">BP</span>, <span style="color:#a6e22e">SP</span>		<span style="color:#75715e">// Restore real SP
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// Restore vdsoPC, vdsoSP
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// We don&#39;t worry about being signaled between the two stores.
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// If we are not in a signal handler, we&#39;ll restore vdsoSP to 0,
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// and no one will care about vdsoPC. If we are in a signal handler,
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// we cannot receive another signal.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#ae81ff">8</span>(<span style="color:#a6e22e">SP</span>), <span style="color:#a6e22e">CX</span>
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">CX</span>, <span style="color:#a6e22e">m_vdsoSP</span>(<span style="color:#a6e22e">BX</span>)
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#ae81ff">0</span>(<span style="color:#a6e22e">SP</span>), <span style="color:#a6e22e">CX</span>
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">CX</span>, <span style="color:#a6e22e">m_vdsoPC</span>(<span style="color:#a6e22e">BX</span>)
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">AX</span>, <span style="color:#a6e22e">sec</span><span style="color:#f92672">+</span><span style="color:#ae81ff">0</span>(<span style="color:#a6e22e">FP</span>)
+	<span style="color:#a6e22e">MOVL</span>	<span style="color:#a6e22e">DX</span>, <span style="color:#a6e22e">nsec</span><span style="color:#f92672">+</span><span style="color:#ae81ff">8</span>(<span style="color:#a6e22e">FP</span>)
+	<span style="color:#a6e22e">RET</span>
+<span style="color:#a6e22e">fallback</span>:
+	<span style="color:#a6e22e">LEAQ</span>	<span style="color:#ae81ff">0</span>(<span style="color:#a6e22e">SP</span>), <span style="color:#a6e22e">DI</span>
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#960050;background-color:#1e0010">$</span><span style="color:#ae81ff">0</span>, <span style="color:#a6e22e">SI</span>
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">runtime</span><span style="color:#960050;background-color:#1e0010">·</span><span style="color:#a6e22e">vdsoGettimeofdaySym</span>(<span style="color:#a6e22e">SB</span>), <span style="color:#a6e22e">AX</span>
+	<span style="color:#a6e22e">CALL</span>	<span style="color:#a6e22e">AX</span>
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#ae81ff">0</span>(<span style="color:#a6e22e">SP</span>), <span style="color:#a6e22e">AX</span>	<span style="color:#75715e">// sec
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">MOVL</span>	<span style="color:#ae81ff">8</span>(<span style="color:#a6e22e">SP</span>), <span style="color:#a6e22e">DX</span>	<span style="color:#75715e">// usec
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">IMULQ</span>	<span style="color:#960050;background-color:#1e0010">$</span><span style="color:#ae81ff">1000</span>, <span style="color:#a6e22e">DX</span>
+	<span style="color:#a6e22e">JMP</span> <span style="color:#a6e22e">ret</span>
+</code></pre></div><p>看到这儿怕了，学汇编还是在校园，快十年。还是继续研究下，得弄清楚时间到底哪里来。</p>
+<p>根据这本书籍，<a href="https://cloud.tencent.com/edu/learning/course-2412-38523">Go 汇编语言 - 函数基本语法</a>，现学现讲</p>
+<p>先看第一句，是函数定义</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// func walltime1() (sec int64, nsec int32)
+</span><span style="color:#75715e"></span><span style="color:#75715e">// non-zero frame-size means bp is saved and restored
+</span><span style="color:#75715e"></span><span style="color:#a6e22e">TEXT</span> <span style="color:#a6e22e">runtime</span><span style="color:#960050;background-color:#1e0010">·</span><span style="color:#a6e22e">walltime1</span>(<span style="color:#a6e22e">SB</span>),<span style="color:#a6e22e">NOSPLIT</span>,<span style="color:#960050;background-color:#1e0010">$</span><span style="color:#ae81ff">16</span><span style="color:#f92672">-</span><span style="color:#ae81ff">12</span>
+</code></pre></div><ul>
+<li>
+<p>TEXT 用来定义函数标识，名称为 <code>runtime·walltime1</code>，中间用的中点（·）连接包名与函数名</p>
+</li>
+<li>
+<p>SB 是 Go 定义的伪寄存器，Static Base pointer，见 <a href="https://cloud.tencent.com/edu/learning/course-2412-38485">Go 汇编中的伪寄存器</a></p>
+</li>
+<li>
+<p>NOSPLIT 告诉编译器，这是叶子函数，不要进行栈分裂</p>
+</li>
+<li>
+<p>函数的局部变量需要的栈空间大小是 16 个字节</p>
+</li>
+<li>
+<p>12 表示函数参数和返回值空间大小为 12 字节</p>
+</li>
+</ul>
+<blockquote>
+<p>(SB) 表示是函数名符号相对于 SB 伪寄存器的偏移量，二者组合在一起最终是绝对地址。
+作为全局的标识符的全局变量和全局函数的名字一般都是基于 SB 伪寄存器的相对地址。</p>
+</blockquote>
+<blockquote>
+<p>NOSPLIT 主要用于指示叶子函数不进行栈分裂。如果有 NOSPLIT 标注，会禁止汇编器为汇编函数插入栈分裂的代码。
+NOSPLIT 对应 Go 语言中的 //go:nosplit 注释。</p>
+</blockquote>
+<p>以上解释主要引用 《Go 语言高级编程》 <a href="https://cloud.tencent.com/edu/learning/course-2412-38523">https://cloud.tencent.com/edu/learning/course-2412-38523</a></p>
+<p>继续下面几行</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-s" data-lang="s">    <span style="color:#f92672">/</span><span style="color:#f92672">/</span><span style="color:#f92672">-</span><span style="color:#f92672">-</span> MOVQ 就是 MOV，操作对象是四字长（Quadword），<span style="color:#ae81ff">8</span> bytes 的值 <span style="color:#f92672">-</span><span style="color:#f92672">-</span><span style="color:#f92672">/</span><span style="color:#f92672">/</span>
+    <span style="color:#f92672">/</span><span style="color:#f92672">/</span><span style="color:#f92672">-</span><span style="color:#f92672">-</span> 作用是调用其他函数前，暂存 SP 指针，后面还会还原 <span style="color:#f92672">-</span><span style="color:#f92672">-</span><span style="color:#f92672">/</span><span style="color:#f92672">/</span>
+    MOVQ	SP, BP	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> Save old SP; BP unchanged by C code.
+
+    <span style="color:#f92672">/</span><span style="color:#f92672">/</span><span style="color:#f92672">-</span><span style="color:#f92672">-</span> get_tls 线程相关，Thread Local Storage 线程本地存储  <span style="color:#f92672">-</span><span style="color:#f92672">-</span><span style="color:#f92672">/</span><span style="color:#f92672">/</span>
+    <span style="color:#f92672">/</span><span style="color:#f92672">/</span><span style="color:#f92672">-</span><span style="color:#f92672">-</span> 作用是获取 Goroutine 所属的线程信息，把信息对应指针放到 CX 中  <span style="color:#f92672">-</span><span style="color:#f92672">-</span><span style="color:#f92672">/</span><span style="color:#f92672">/</span>
+    <span style="color:#f92672">/</span><span style="color:#f92672">/</span><span style="color:#f92672">-</span><span style="color:#f92672">-</span> 这句被称为 “宏定义”，在 src<span style="color:#f92672">/</span>runtime<span style="color:#f92672">/</span>go_tls.h <span style="color:#f92672">-</span><span style="color:#f92672">-</span><span style="color:#f92672">/</span>
+	<span style="color:#a6e22e">get_tls</span>(CX)
+
+    <span style="color:#f92672">/</span><span style="color:#f92672">/</span><span style="color:#f92672">-</span><span style="color:#f92672">-</span> 从 TLS 中得到 g，g 指针是 Goroutine 的结构 <span style="color:#f92672">-</span><span style="color:#f92672">-</span><span style="color:#f92672">/</span><span style="color:#f92672">/</span>
+    <span style="color:#f92672">/</span><span style="color:#f92672">/</span><span style="color:#f92672">-</span><span style="color:#f92672">-</span> 见 https<span style="color:#f92672">:</span><span style="color:#f92672">/</span><span style="color:#f92672">/</span>cloud.tencent.com<span style="color:#f92672">/</span>edu<span style="color:#f92672">/</span>learning<span style="color:#f92672">/</span>course<span style="color:#ae81ff">-2412</span><span style="color:#ae81ff">-38569</span> <span style="color:#f92672">-</span><span style="color:#f92672">-</span><span style="color:#f92672">/</span><span style="color:#f92672">/</span>
+	MOVQ	<span style="color:#a6e22e">g</span>(CX), AX
+
+    <span style="color:#f92672">/</span><span style="color:#f92672">/</span><span style="color:#f92672">-</span><span style="color:#f92672">-</span> 又是个宏，还没查，先略过。 <span style="color:#f92672">-</span><span style="color:#f92672">-</span><span style="color:#f92672">/</span><span style="color:#f92672">/</span>
+    <span style="color:#f92672">/</span><span style="color:#f92672">/</span><span style="color:#f92672">-</span><span style="color:#f92672">-</span> 不过此时 AX，BX 存的是跟线程、协程相关的东西 <span style="color:#f92672">-</span><span style="color:#f92672">-</span><span style="color:#f92672">/</span><span style="color:#f92672">/</span>
+	MOVQ	<span style="color:#a6e22e">g_m</span>(AX), BX <span style="color:#f92672">/</span><span style="color:#f92672">/</span> BX unchanged by C code.
+</code></pre></div><div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-s" data-lang="s">    <span style="color:#f92672">/</span><span style="color:#f92672">/</span><span style="color:#f92672">-</span><span style="color:#f92672">-</span> 又是一批高端代码 <span style="color:#f92672">-</span><span style="color:#f92672">-</span><span style="color:#f92672">/</span><span style="color:#f92672">/</span>
+
+	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> Set vdsoPC and vdsoSP for SIGPROF traceback.
+	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> Save the old values on stack and restore them on exit,
+	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> so this function is reentrant.
+	MOVQ	<span style="color:#a6e22e">m_vdsoPC</span>(BX), CX
+	MOVQ	<span style="color:#a6e22e">m_vdsoSP</span>(BX), DX
+	MOVQ	CX, <span style="color:#ae81ff">0</span>(SP)
+	MOVQ	DX, <span style="color:#ae81ff">8</span>(SP)
+
+    <span style="color:#f92672">/</span><span style="color:#f92672">/</span><span style="color:#f92672">-</span><span style="color:#f92672">-</span> LEA： 取偏移地址（Load effective address） 
+	LEAQ	sec<span style="color:#ae81ff">+0</span>(FP), DX
+	MOVQ	<span style="color:#ae81ff">-8</span>(DX), CX
+	MOVQ	CX, <span style="color:#a6e22e">m_vdsoPC</span>(BX)
+	MOVQ	DX, <span style="color:#a6e22e">m_vdsoSP</span>(BX)
+</code></pre></div><ul>
+<li>VDSO 是 virtual dynamic shared object，用于用户态调用内核态，能减少内核切换开销，见 <a href="https://en.wikipedia.org/wiki/VDSO">https://en.wikipedia.org/wiki/VDSO</a></li>
+</ul>
+<blockquote>
+<p>vDSO (virtual dynamic shared object) is a kernel mechanism for exporting a carefully selected set
+of kernel space routines to user space applications so that applications can call these
+kernel space routines in-process, without incurring the performance penalty of a mode switch from
+user mode to kernel mode that is inherent when calling these same kernel space routines by means
+of the system call interface.</p>
+</blockquote>
+<p>继续往下，来到重点逻辑</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-s" data-lang="s">    CMPQ	AX, <span style="color:#a6e22e">m_curg</span>(BX)	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> Only switch if on curg.
+	JNE	noswitch
+
+	MOVQ	<span style="color:#a6e22e">m_g0</span>(BX), DX
+	<span style="color:#a6e22e">MOVQ	</span>(g_sched<span style="color:#f92672">+</span>gobuf_sp)(DX), SP	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> Set SP to g0 stack
+
+noswitch<span style="color:#f92672">:</span>
+	SUBQ	<span style="color:#f92672">$</span><span style="color:#ae81ff">16</span>, SP		<span style="color:#f92672">/</span><span style="color:#f92672">/</span> Space for results
+	ANDQ	<span style="color:#f92672">$</span><span style="color:#f92672">~</span><span style="color:#ae81ff">15</span>, SP	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> Align for C code
+
+	MOVQ	runtime·<span style="color:#a6e22e">vdsoClockgettimeSym</span>(SB), AX
+	CMPQ	AX, <span style="color:#f92672">$</span><span style="color:#ae81ff">0</span>
+	JEQ	fallback
+	MOVL	<span style="color:#f92672">$</span><span style="color:#ae81ff">0</span>, DI <span style="color:#f92672">/</span><span style="color:#f92672">/</span> CLOCK_REALTIME
+	LEAQ	<span style="color:#ae81ff">0</span>(SP), SI
+	CALL	AX
+	MOVQ	<span style="color:#ae81ff">0</span>(SP), AX	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> sec
+	MOVQ	<span style="color:#ae81ff">8</span>(SP), DX	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> nsec
+ret<span style="color:#f92672">:</span>
+	MOVQ	BP, SP		<span style="color:#f92672">/</span><span style="color:#f92672">/</span> Restore real SP
+	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> Restore vdsoPC, vdsoSP
+	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> We don<span style="color:#e6db74">&#39;</span><span style="color:#e6db74">t worry about being signaled between the two stores.
+</span><span style="color:#e6db74">	// If we are not in a signal handler, we&#39;</span>ll restore vdsoSP to <span style="color:#ae81ff">0</span>,
+	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> and no one will care about vdsoPC. If we are in a signal handler,
+	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> we cannot receive another signal.
+	MOVQ	<span style="color:#ae81ff">8</span>(SP), CX
+	MOVQ	CX, <span style="color:#a6e22e">m_vdsoSP</span>(BX)
+	MOVQ	<span style="color:#ae81ff">0</span>(SP), CX
+	MOVQ	CX, <span style="color:#a6e22e">m_vdsoPC</span>(BX)
+	MOVQ	AX, sec<span style="color:#ae81ff">+0</span>(FP)
+	MOVL	DX, nsec<span style="color:#ae81ff">+8</span>(FP)
+	RET
+fallback<span style="color:#f92672">:</span>
+	LEAQ	<span style="color:#ae81ff">0</span>(SP), DI
+	MOVQ	<span style="color:#f92672">$</span><span style="color:#ae81ff">0</span>, SI
+	MOVQ	runtime·<span style="color:#a6e22e">vdsoGettimeofdaySym</span>(SB), AX
+	CALL	AX
+	MOVQ	<span style="color:#ae81ff">0</span>(SP), AX	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> sec
+	MOVL	<span style="color:#ae81ff">8</span>(SP), DX	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> usec
+	IMULQ	<span style="color:#f92672">$</span><span style="color:#ae81ff">1000</span>, DX
+	JMP ret
+</code></pre></div><p>用 Go 伪代码来写的话（师爷你给翻译翻译，什么叫做汇编）</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">walltime1</span>() (<span style="color:#66d9ef">int64</span>, <span style="color:#66d9ef">int32</span>) {
+    <span style="color:#75715e">// 预处理
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// 1. 暂存 SP
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// 2. 处理线程、协程
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// 3. 处理内核调用
+</span><span style="color:#75715e"></span>
+    <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">sec</span> <span style="color:#66d9ef">int64</span>
+    <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">nsec</span> <span style="color:#66d9ef">int32</span>
+
+    <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">on_curg</span> {
+        <span style="color:#75715e">// noswitch
+</span><span style="color:#75715e"></span>        <span style="color:#a6e22e">f</span> = <span style="color:#a6e22e">vdsoClockgettimeSym</span>()
+        <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">f</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+            <span style="color:#a6e22e">clockRealtime</span> <span style="color:#f92672">:=</span> <span style="color:#ae81ff">0</span>
+            <span style="color:#a6e22e">f</span>(<span style="color:#a6e22e">clockRealtime</span>, <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">ti</span>)
+            <span style="color:#75715e">// sec: AX
+</span><span style="color:#75715e"></span>            <span style="color:#75715e">// nsec: DX
+</span><span style="color:#75715e"></span>        } <span style="color:#66d9ef">else</span> {
+            <span style="color:#75715e">// fallback
+</span><span style="color:#75715e"></span>            <span style="color:#a6e22e">f</span> = <span style="color:#a6e22e">vdsoGettimeofdaySym</span>()
+            <span style="color:#a6e22e">f</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">ti</span>)
+            <span style="color:#75715e">// sec: AX
+</span><span style="color:#75715e"></span>            <span style="color:#75715e">// usec: DX
+</span><span style="color:#75715e"></span>            <span style="color:#75715e">// nsec: DX * 1000
+</span><span style="color:#75715e"></span>        }
+    }
+    <span style="color:#75715e">// 后处理
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// 1. 恢复 SP
+</span><span style="color:#75715e"></span>    <span style="color:#75715e">// 2. 再处理内核调用
+</span><span style="color:#75715e"></span>
+    <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">sec</span>, <span style="color:#a6e22e">nsec</span>
+}
+</code></pre></div><p>这些汇编代码，本质是完成了一次系统调用。</p>
+<p>再坚持下，看下 <code>runtime·vdsoClockgettimeSym</code> 和 <code>runtime·vdsoGettimeofdaySym</code> 是什么</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">runtime</span>
+
+<span style="color:#66d9ef">const</span> (
+	<span style="color:#75715e">// vdsoArrayMax is the byte-size of a maximally sized array on this architecture.
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// See cmd/compile/internal/amd64/galign.go arch.MAXWIDTH initialization.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">vdsoArrayMax</span> = <span style="color:#ae81ff">1</span><span style="color:#f92672">&lt;&lt;</span><span style="color:#ae81ff">50</span> <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>
+)
+
+<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">vdsoLinuxVersion</span> = <span style="color:#a6e22e">vdsoVersionKey</span>{<span style="color:#e6db74">&#34;LINUX_2.6&#34;</span>, <span style="color:#ae81ff">0x3ae75f6</span>}
+
+<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">vdsoSymbolKeys</span> = []<span style="color:#a6e22e">vdsoSymbolKey</span>{
+	{<span style="color:#e6db74">&#34;__vdso_gettimeofday&#34;</span>, <span style="color:#ae81ff">0x315ca59</span>, <span style="color:#ae81ff">0xb01bca00</span>, <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">vdsoGettimeofdaySym</span>},
+	{<span style="color:#e6db74">&#34;__vdso_clock_gettime&#34;</span>, <span style="color:#ae81ff">0xd35ec75</span>, <span style="color:#ae81ff">0x6e43a318</span>, <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">vdsoClockgettimeSym</span>},
+}
+
+<span style="color:#75715e">// initialize with vsyscall fallbacks
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">var</span> (
+	<span style="color:#a6e22e">vdsoGettimeofdaySym</span> <span style="color:#66d9ef">uintptr</span> = <span style="color:#ae81ff">0xffffffffff600000</span>
+	<span style="color:#a6e22e">vdsoClockgettimeSym</span> <span style="color:#66d9ef">uintptr</span> = <span style="color:#ae81ff">0</span>
+)
+</code></pre></div><p>网上大佬说 <code>0x315ca59</code> 这个码是用来校验的，还不清楚怎么生成。</p>
+<p>之前恰好查过 Linux 系统调用文档 <a href="https://man7.org/linux/man-pages/man2/syscalls.2.html">https://man7.org/linux/man-pages/man2/syscalls.2.html</a></p>
+<p><code>gettimeofday</code> 和 <code>clock_gettime</code> 都在里面，<code>clock_gettime</code> 调用出入参，文档在
+<a href="https://man7.org/linux/man-pages/man2/clock_gettime.2.html">https://man7.org/linux/man-pages/man2/clock_gettime.2.html</a></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-cpp" data-lang="cpp">    <span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;time.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+    <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">clock_gettime</span>(clockid_t clockid, <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">timespec</span> <span style="color:#f92672">*</span>tp);
+</code></pre></div><p>第一个入参 <code>clockid</code> 传 CLOCK_REALTIME 时，表示系统时间。可以被用户、NTP 改变的那个。</p>
+<blockquote>
+<p>A settable system-wide clock that measures real (i.e.,
+wall-clock) time.  Setting this clock requires appropriate
+privileges.  This clock is affected by discontinuous jumps
+in the system time (e.g., if the system administrator
+manually changes the clock), and by the incremental
+adjustments performed by adjtime(3) and NTP.</p>
+</blockquote>
+<p>第二个入参，<code>timespec</code> 指针，其实是返回值，包含秒、纳秒信息。</p>
+<p>出参 int，用于表示调用是否成功。</p>
+<h2 id="linux-系统调用">Linux 系统调用</h2>
+<p>我们都知道，系统调用是操作系统提供的接口，用户态进程根据输入输出规格，阻塞地调用。</p>
+<p>系统调用提供几乎操作系统的一切功能，不限于管理</p>
+<ul>
+<li>CPU</li>
+<li>内存</li>
+<li>进程</li>
+<li>用户</li>
+<li>用户组</li>
+<li>文件</li>
+<li>文件系统</li>
+<li>中断</li>
+<li>时间</li>
+<li>网络</li>
+<li>I/O 设备</li>
+</ul>
+<p>在 Linux amd64 操作系统中，这个头文件定义了系统调用编号。<code>clock_gettime</code> 编号为 228。</p>
+<p>/usr/include/asm/unistd_64.h</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-h" data-lang="h"><span style="color:#75715e">#</span><span style="color:#75715e">ifndef _ASM_X86_UNISTD_64_H</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">define _ASM_X86_UNISTD_64_H</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">#</span><span style="color:#75715e">ifndef __SYSCALL</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">define __SYSCALL(a, b)</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">endif</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">/*
+</span><span style="color:#75715e"> * This file contains the system call numbers.
+</span><span style="color:#75715e"> *
+</span><span style="color:#75715e"> * Note: holes are not allowed.
+</span><span style="color:#75715e"> */</span>
+
+<span style="color:#75715e">/* at least 8 syscall per cacheline */</span>
+<span style="color:#75715e">#</span><span style="color:#75715e">define __NR_read				0</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>__SYSCALL(__NR_read, sys_read)
+<span style="color:#75715e">#</span><span style="color:#75715e">define __NR_write				1</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>__SYSCALL(__NR_write, sys_write)
+<span style="color:#75715e">#</span><span style="color:#75715e">define __NR_open				2</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>__SYSCALL(__NR_open, sys_open)
+<span style="color:#75715e">#</span><span style="color:#75715e">define __NR_close				3</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>__SYSCALL(__NR_close, sys_close)
+<span style="color:#75715e">#</span><span style="color:#75715e">define __NR_stat				4</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>__SYSCALL(__NR_stat, sys_newstat)
+<span style="color:#75715e">#</span><span style="color:#75715e">define __NR_fstat				5</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">//-- 省略 --//
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">#</span><span style="color:#75715e">define __NR_clock_gettime			228</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>__SYSCALL(__NR_clock_gettime, sys_clock_gettime)
+</code></pre></div><p>说了这么多，怎么知道这些分析过程是正确的，能自己再写一次 Go 与汇编，实现系统调用吗？</p>
+<!-- raw HTML omitted -->
+<h2 id="其他操作系统">其他操作系统</h2>
+<p>对于 Darwin amd64，是通过 libc 进行系统调用 <code>gettimeofday</code>，见 Apple Libc
+<a href="https://opensource.apple.com/source/Libc/">https://opensource.apple.com/source/Libc/</a></p>
+<p>src/runtime/sys_darwin.go</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">//go:nosplit
+</span><span style="color:#75715e"></span><span style="color:#75715e">//go:cgo_unsafe_args
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">walltime1</span>() (<span style="color:#66d9ef">int64</span>, <span style="color:#66d9ef">int32</span>) {
+	<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">t</span> <span style="color:#a6e22e">timeval</span>
+	<span style="color:#a6e22e">libcCall</span>(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#a6e22e">funcPC</span>(<span style="color:#a6e22e">walltime_trampoline</span>)), <span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">t</span>))
+	<span style="color:#66d9ef">return</span> int64(<span style="color:#a6e22e">t</span>.<span style="color:#a6e22e">tv_sec</span>), <span style="color:#ae81ff">1000</span> <span style="color:#f92672">*</span> <span style="color:#a6e22e">t</span>.<span style="color:#a6e22e">tv_usec</span>
+}
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">walltime_trampoline</span>()
+</code></pre></div><p>src/runtime/sys_darwin_amd64.s</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-s" data-lang="s">TEXT runtime·<span style="color:#a6e22e">walltime_trampoline</span>(SB),NOSPLIT,<span style="color:#f92672">$</span><span style="color:#ae81ff">0</span>
+	PUSHQ	BP			<span style="color:#f92672">/</span><span style="color:#f92672">/</span> make a frame; keep stack aligned
+	MOVQ	SP, BP
+	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> DI already has <span style="color:#f92672">*</span>timeval
+	XORL	SI, SI <span style="color:#f92672">/</span><span style="color:#f92672">/</span> no timezone needed
+	CALL	<span style="color:#a6e22e">libc_gettimeofday</span>(SB)
+	POPQ	BP
+	RET
+</code></pre></div><p>对 Windows amd64，系统调用为 <code>GetSystemTimeAsFileTime</code>，
+见 <a href="https://docs.microsoft.com/zh-tw/windows/win32/api/sysinfoapi/nf-sysinfoapi-getsystemtimeasfiletime">https://docs.microsoft.com/zh-tw/windows/win32/api/sysinfoapi/nf-sysinfoapi-getsystemtimeasfiletime</a></p>
+<p>src/runtime/sys_windows_amd64.s</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-s" data-lang="s">TEXT time·<span style="color:#a6e22e">now</span>(SB),NOSPLIT,<span style="color:#f92672">$</span><span style="color:#ae81ff">0</span><span style="color:#ae81ff">-24</span>
+	CMPB	runtime·<span style="color:#a6e22e">useQPCTime</span>(SB), <span style="color:#f92672">$</span><span style="color:#ae81ff">0</span>
+	JNE	useQPC
+	MOVQ	<span style="color:#f92672">$</span>_INTERRUPT_TIME, DI
+loop<span style="color:#f92672">:</span>
+	MOVL	<span style="color:#a6e22e">time_hi1</span>(DI), AX
+	MOVL	<span style="color:#a6e22e">time_lo</span>(DI), BX
+	MOVL	<span style="color:#a6e22e">time_hi2</span>(DI), CX
+	CMPL	AX, CX
+	JNE	loop
+	SHLQ	<span style="color:#f92672">$</span><span style="color:#ae81ff">32</span>, AX
+	ORQ	BX, AX
+	IMULQ	<span style="color:#f92672">$</span><span style="color:#ae81ff">100</span>, AX
+	MOVQ	AX, mono<span style="color:#ae81ff">+16</span>(FP)
+
+	MOVQ	<span style="color:#f92672">$</span>_SYSTEM_TIME, DI
+wall<span style="color:#f92672">:</span>
+	MOVL	<span style="color:#a6e22e">time_hi1</span>(DI), AX
+	MOVL	<span style="color:#a6e22e">time_lo</span>(DI), BX
+	MOVL	<span style="color:#a6e22e">time_hi2</span>(DI), CX
+	CMPL	AX, CX
+	JNE	wall
+	SHLQ	<span style="color:#f92672">$</span><span style="color:#ae81ff">32</span>, AX
+	ORQ	BX, AX
+	MOVQ	<span style="color:#f92672">$</span><span style="color:#ae81ff">116444736000000000</span>, DI
+	SUBQ	DI, AX
+	IMULQ	<span style="color:#f92672">$</span><span style="color:#ae81ff">100</span>, AX
+
+	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> generated code for
+	<span style="color:#f92672">/</span><span style="color:#f92672">/</span>	func <span style="color:#a6e22e">f</span>(x uint64) (uint64, uint64) { return x<span style="color:#f92672">/</span><span style="color:#ae81ff">1000000000</span>, x%<span style="color:#ae81ff">100000000</span> }
+	<span style="color:#f92672">/</span><span style="color:#f92672">/</span> adapted to reduce duplication
+	MOVQ	AX, CX
+	MOVQ	<span style="color:#f92672">$</span><span style="color:#ae81ff">1360296554856532783</span>, AX
+	MULQ	CX
+	ADDQ	CX, DX
+	RCRQ	<span style="color:#f92672">$</span><span style="color:#ae81ff">1</span>, DX
+	SHRQ	<span style="color:#f92672">$</span><span style="color:#ae81ff">29</span>, DX
+	MOVQ	DX, sec<span style="color:#ae81ff">+0</span>(FP)
+	IMULQ	<span style="color:#f92672">$</span><span style="color:#ae81ff">1000000000</span>, DX
+	SUBQ	DX, CX
+	MOVL	CX, nsec<span style="color:#ae81ff">+8</span>(FP)
+	RET
+useQPC<span style="color:#f92672">:</span>
+	JMP	runtime·<span style="color:#a6e22e">nowQPC</span>(SB)
+	RET
+</code></pre></div><div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">//go:nosplit
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">nowQPC</span>() (<span style="color:#a6e22e">sec</span> <span style="color:#66d9ef">int64</span>, <span style="color:#a6e22e">nsec</span> <span style="color:#66d9ef">int32</span>, <span style="color:#a6e22e">mono</span> <span style="color:#66d9ef">int64</span>) {
+	<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">ft</span> <span style="color:#66d9ef">int64</span>
+	<span style="color:#a6e22e">stdcall1</span>(<span style="color:#a6e22e">_GetSystemTimeAsFileTime</span>, uintptr(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">ft</span>)))
+
+	<span style="color:#a6e22e">t</span> <span style="color:#f92672">:=</span> (<span style="color:#a6e22e">ft</span> <span style="color:#f92672">-</span> <span style="color:#ae81ff">116444736000000000</span>) <span style="color:#f92672">*</span> <span style="color:#ae81ff">100</span>
+
+	<span style="color:#a6e22e">sec</span> = <span style="color:#a6e22e">t</span> <span style="color:#f92672">/</span> <span style="color:#ae81ff">1000000000</span>
+	<span style="color:#a6e22e">nsec</span> = int32(<span style="color:#a6e22e">t</span> <span style="color:#f92672">-</span> <span style="color:#a6e22e">sec</span><span style="color:#f92672">*</span><span style="color:#ae81ff">1000000000</span>)
+
+	<span style="color:#a6e22e">mono</span> = <span style="color:#a6e22e">nanotimeQPC</span>()
+	<span style="color:#66d9ef">return</span>
+}
+</code></pre></div><h2 id="总结">总结</h2>
+<p>Go 调用 time.Now() 时，会先根据不同操作系统、不同 CPU 架构，去查找不同的系统调用实现。对于 Linux amd64，
+会通过汇编直接调用 <code>vdso_clock_gettime</code>，如果没有这个系统调用，会降级调用 <code>vdso_gettimeofday</code>，不论调用哪一个，
+都会返回秒、纳秒数值。对于 Darwin amd64，会通过 libc 调用 <code>gettimeofday</code>，对于 Windows amd64，
+会调用 <code>GetSystemTimeAsFileTime</code>，其他系统与架构，也分别能找到对应实现。最后进行转换并返回。</p>
+<p>但我们还没明白几个问题。能解释清楚的大佬，欢迎留言联系我。</p>
+<ol>
+<li>操作系统中，系统调用是如何实现的？<code>clock_gettime</code> 怎样根据调用的传参，进行怎样的处理并返回？</li>
+<li>汇编进行系统调用时，将入参放入 DI 寄存器、最后到 SP 寄存器取结果，用哪个寄存器是在哪约定的？</li>
+<li>操作系统中，时间是如何自增的？设置时间时，怎样把时间同步到 BIOS 芯片中？开机时，又是如何读取时间的？</li>
+<li>石英钟计时的物理学原理是什么？</li>
+</ol>
+<hr>
+<p>下一期</p>
+<ol>
+<li>Linux 源码中 clock_gettime 的实现</li>
+<li>如何实现一个简单的 Linux 系统调用？</li>
+<li>硬件时间与计时原理</li>
+</ol>
+<hr>
+<p>参考文档</p>
+<ol>
+<li>Function Declarations <a href="https://golang.org/ref/spec#Function_declarations">https://golang.org/ref/spec#Function_declarations</a></li>
+<li>Compiler Directives <a href="https://golang.org/pkg/cmd/compile/">https://golang.org/pkg/cmd/compile/</a></li>
+<li>Build Constraints <a href="https://golang.org/cmd/go/#hdr-Build_constraints">https://golang.org/cmd/go/#hdr-Build_constraints</a></li>
+<li>《A Quick Guide to Go&rsquo;s Assembler》 <a href="https://golang.org/doc/asm">https://golang.org/doc/asm</a></li>
+<li>《Go 语言高级编程》 <a href="https://cloud.tencent.com/edu/learning/course-2412-38523">https://cloud.tencent.com/edu/learning/course-2412-38523</a>
+5.1. 《Go 汇编语言 - 函数基本语法》 <a href="https://cloud.tencent.com/edu/learning/course-2412-38523">https://cloud.tencent.com/edu/learning/course-2412-38523</a>
+5.2. 《Go 汇编语言 - 伪寄存器》 <a href="https://cloud.tencent.com/edu/learning/course-2412-38485">https://cloud.tencent.com/edu/learning/course-2412-38485</a>
+5.3. 《Go 汇编语言 - g 结构体》 <a href="https://cloud.tencent.com/edu/learning/course-2412-38569">https://cloud.tencent.com/edu/learning/course-2412-38569</a></li>
+<li>《Go ARM64 vDSO 优化之路》 <a href="https://mzh.io/golang-arm64-vdso/">https://mzh.io/golang-arm64-vdso/</a></li>
+<li>《vDSO - Wikipedia》 <a href="https://en.wikipedia.org/wiki/VDSO">https://en.wikipedia.org/wiki/VDSO</a></li>
+<li>Syscalls — Linux manual page <a href="https://man7.org/linux/man-pages/man2/syscalls.2.html">https://man7.org/linux/man-pages/man2/syscalls.2.html</a></li>
+</ol>
+
+    </div>
+  </article>
+
+  <div id="disqus_thread"></div>
+<script type="application/javascript">
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "zyfdegh" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="https://zyfdegh.github.io/images/hugo-logo.png" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+
+    
+  </body>
+</html>
+

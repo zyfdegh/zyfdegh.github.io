@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.64.1" />
+
+
+<title>[译] sciter: 使用 HTML/CSS 构建 Golang 图形界面程序 - 独行的蚂蚁 - 博客</title>
+<meta property="og:title" content="[译] sciter: 使用 HTML/CSS 构建 Golang 图形界面程序 - 独行的蚂蚁 - 博客">
+
+
+
+
+  
+
+
+
+
+<link rel="icon" href="https://zyfdegh.github.io/images/" type="image/x-icon"/>
+<link rel="stylesheet" href="https://zyfdegh.github.io/css/main.css" media="all">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Merriweather:400|Lato:400,400italic,700">
+
+    <script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+  MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+  });
+  MathJax.Hub.Queue(function() {
+    
+    
+    
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i < all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+
+  MathJax.Hub.Config({
+  
+  TeX: { equationNumbers: { autoNumber: "AMS" } }
+  });
+</script>
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="https://zyfdegh.github.io/" class="nav-logo">
+    <img src="https://zyfdegh.github.io/images/ant.png" 
+         width="50" 
+         height="50" 
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="https://zyfdegh.github.io/">Articles</a></li>
+    
+    <li><a href="https://zyfdegh.github.io/about/">About</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">2 min read</span>
+    
+
+    <h1 class="article-title">[译] sciter: 使用 HTML/CSS 构建 Golang 图形界面程序</h1>
+
+    
+    <span class="article-date">June 25, 2018</span>
+    
+
+    <div class="article-content">
+      <p>原文：<a href="https://www.mchampaneri.in/2018/06/sciter-gui-application-with-golang.html#comment-form">《SCITER : GUI APPLICATION WITH GOLANG USING HTML/CSS》</a></p>
+<p>作者：Manish Champaneri</p>
+<!-- raw HTML omitted -->
+<p>这是来自 sciter 网站的几句话，</p>
+<blockquote>
+<p>sciter 桌面 UI 开发带来了一系列网页技术。网页设计者和开发者可以复用他们
+的经验和专长来构建看起来现代的桌面应用。</p>
+</blockquote>
+<blockquote>
+<p>多种多样的 GUI 框架提供了不同的 UI 声明和格式语言，比如 QML 和 XAML（Microsoft WPF）。
+不同的是， sciter 使用长期证明的、健壮的、灵活的 HTML 和 CSS 来定义 GUI，并
+支持 GPU 加速。</p>
+</blockquote>
+<p>在我使用 sciter 之前，我试过了其他几种选择，但没有一个满足我的要求。比如最开始，我用了
+<a href="https://github.com/andlabs/ui">andlabs/ui</a>，我写过一篇关于这个库的文章，可以去读这篇
+<a href="https://www.mchampaneri.in/2018/02/gui-programming-with-golang.html">《Golang 图形界面编程》</a>。不过这个库仍在开发中，不足以支持生产环境下的应用。</p>
+<p>另外我用了 Eletron，然而问题是一个简单的计算器软件要占用 150MB，其中 15MB 是 Go 程序，
+其余的都是 Electron 本身。</p>
+<p>不久前，我找到了另一个替换品，就是 sciter。现在还能免费试用包含商业性的内容（有一定期限）。</p>
+<p>我假定你已经阅读了开头引用的两段话，如果你想了解更多关于 sciter 的信息，可以访问网站
+<a href="https://sciter.com/">https://sciter.com/</a> 。</p>
+<p>下面是 sciter 应用的简单实例</p>
+<!-- raw HTML omitted -->
+<p>接下来我分享一下 Go 和 HTML 文件的源码（放在相同目录）。</p>
+<p>Go 文件</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> (
+	<span style="color:#e6db74">&#34;fmt&#34;</span>
+
+	<span style="color:#e6db74">&#34;github.com/fatih/color&#34;</span>
+	<span style="color:#a6e22e">sciter</span> <span style="color:#e6db74">&#34;github.com/sciter-sdk/go-sciter&#34;</span>
+	<span style="color:#e6db74">&#34;github.com/sciter-sdk/go-sciter/window&#34;</span>
+)
+
+<span style="color:#75715e">// Specifying  havily used
+</span><span style="color:#75715e"></span><span style="color:#75715e">// Singltons to make them
+</span><span style="color:#75715e"></span><span style="color:#75715e">// package wide available
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">root</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">sciter</span>.<span style="color:#a6e22e">Element</span>
+<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">rootSelectorErr</span> <span style="color:#66d9ef">error</span>
+<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">w</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">window</span>.<span style="color:#a6e22e">Window</span>
+<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">windowErr</span> <span style="color:#66d9ef">error</span>
+
+<span style="color:#75715e">// Preapare Scitre For Execution ///
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">init</span>() {
+
+	<span style="color:#75715e">// initlzigin window for downloaer
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// app with appropriate properties
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">rect</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">sciter</span>.<span style="color:#a6e22e">NewRect</span>(<span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">100</span>, <span style="color:#ae81ff">300</span>, <span style="color:#ae81ff">350</span>)
+	<span style="color:#a6e22e">w</span>, <span style="color:#a6e22e">windowErr</span> = <span style="color:#a6e22e">window</span>.<span style="color:#a6e22e">New</span>(<span style="color:#a6e22e">sciter</span>.<span style="color:#a6e22e">SW_TITLEBAR</span>|
+		<span style="color:#a6e22e">sciter</span>.<span style="color:#a6e22e">SW_CONTROLS</span>|
+		<span style="color:#a6e22e">sciter</span>.<span style="color:#a6e22e">SW_MAIN</span>|
+		<span style="color:#a6e22e">sciter</span>.<span style="color:#a6e22e">SW_GLASSY</span>,
+		<span style="color:#a6e22e">rect</span>)
+
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">windowErr</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+		<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#e6db74">&#34;Can not create new window&#34;</span>)
+		<span style="color:#66d9ef">return</span>
+	}
+	<span style="color:#75715e">// Loading main html file for app
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">htloadErr</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">w</span>.<span style="color:#a6e22e">LoadFile</span>(<span style="color:#e6db74">&#34;./main.html&#34;</span>)
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">htloadErr</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+		<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#e6db74">&#34;Can not load html in the screen&#34;</span>, <span style="color:#a6e22e">htloadErr</span>.<span style="color:#a6e22e">Error</span>())
+		<span style="color:#66d9ef">return</span>
+	}
+
+	<span style="color:#75715e">// Initializng  Selector at global level as we  are going to need
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// it mostly and as it is
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">root</span>, <span style="color:#a6e22e">rootSelectorErr</span> = <span style="color:#a6e22e">w</span>.<span style="color:#a6e22e">GetRootElement</span>()
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">rootSelectorErr</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+		<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#e6db74">&#34;Can not select root element&#34;</span>)
+		<span style="color:#66d9ef">return</span>
+	}
+
+	<span style="color:#75715e">// Set title of the appliaction window
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">w</span>.<span style="color:#a6e22e">SetTitle</span>(<span style="color:#e6db74">&#34;Simple Calc&#34;</span>)
+
+}
+
+<span style="color:#75715e">// Preaprare Program for execution ///
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+
+	<span style="color:#a6e22e">addbutton</span>, <span style="color:#a6e22e">_</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">root</span>.<span style="color:#a6e22e">SelectById</span>(<span style="color:#e6db74">&#34;add&#34;</span>)
+
+	<span style="color:#a6e22e">out1</span>, <span style="color:#a6e22e">errout1</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">root</span>.<span style="color:#a6e22e">SelectById</span>(<span style="color:#e6db74">&#34;output1&#34;</span>)
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">errout1</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+		<span style="color:#a6e22e">color</span>.<span style="color:#a6e22e">Red</span>(<span style="color:#e6db74">&#34;failed to bound output 1 &#34;</span>, <span style="color:#a6e22e">errout1</span>.<span style="color:#a6e22e">Error</span>())
+	}
+	<span style="color:#a6e22e">addbutton</span>.<span style="color:#a6e22e">OnClick</span>(<span style="color:#66d9ef">func</span>() {
+		<span style="color:#a6e22e">output</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">add</span>()
+		<span style="color:#a6e22e">out1</span>.<span style="color:#a6e22e">SetText</span>(<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Sprint</span>(<span style="color:#a6e22e">output</span>))
+	})
+
+	<span style="color:#a6e22e">w</span>.<span style="color:#a6e22e">Show</span>()
+	<span style="color:#a6e22e">w</span>.<span style="color:#a6e22e">Run</span>()
+
+}
+
+
+<span style="color:#75715e">//////////////////////////////////////////////////
+</span><span style="color:#75715e"></span><span style="color:#75715e">/// Function of calc                           ///
+</span><span style="color:#75715e"></span><span style="color:#75715e">//////////////////////////////////////////////////
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">add</span>() <span style="color:#66d9ef">int</span> {
+
+	
+	<span style="color:#75715e">// Refreshing and fetching inputs()
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">in1</span>, <span style="color:#a6e22e">errin1</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">root</span>.<span style="color:#a6e22e">SelectById</span>(<span style="color:#e6db74">&#34;input1&#34;</span>)
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">errin1</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+		<span style="color:#a6e22e">color</span>.<span style="color:#a6e22e">Red</span>(<span style="color:#e6db74">&#34;failed to bound input 1 &#34;</span>, <span style="color:#a6e22e">errin1</span>.<span style="color:#a6e22e">Error</span>())
+	}
+	<span style="color:#a6e22e">in2</span>, <span style="color:#a6e22e">errin2</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">root</span>.<span style="color:#a6e22e">SelectById</span>(<span style="color:#e6db74">&#34;input2&#34;</span>)
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">errin2</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+		<span style="color:#a6e22e">color</span>.<span style="color:#a6e22e">Red</span>(<span style="color:#e6db74">&#34;failed to bound input 2 &#34;</span>, <span style="color:#a6e22e">errin2</span>.<span style="color:#a6e22e">Error</span>())
+	}
+
+	<span style="color:#a6e22e">in1val</span>, <span style="color:#a6e22e">errv1</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">in1</span>.<span style="color:#a6e22e">GetValue</span>()
+	<span style="color:#a6e22e">color</span>.<span style="color:#a6e22e">Green</span>(<span style="color:#a6e22e">in1val</span>.<span style="color:#a6e22e">String</span>())
+
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">errv1</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+		<span style="color:#a6e22e">color</span>.<span style="color:#a6e22e">Red</span>(<span style="color:#a6e22e">errv1</span>.<span style="color:#a6e22e">Error</span>())
+	}
+	<span style="color:#a6e22e">in2val</span>, <span style="color:#a6e22e">errv2</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">in2</span>.<span style="color:#a6e22e">GetValue</span>()
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">errv2</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+		<span style="color:#a6e22e">color</span>.<span style="color:#a6e22e">Red</span>(<span style="color:#a6e22e">errv2</span>.<span style="color:#a6e22e">Error</span>())
+	}
+	<span style="color:#a6e22e">color</span>.<span style="color:#a6e22e">Green</span>(<span style="color:#a6e22e">in2val</span>.<span style="color:#a6e22e">String</span>())
+
+	<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">in1val</span>.<span style="color:#a6e22e">Int</span>() <span style="color:#f92672">+</span> <span style="color:#a6e22e">in2val</span>.<span style="color:#a6e22e">Int</span>()
+}
+
+<span style="color:#75715e">///////////////////////////////////////////////////
+</span></code></pre></div><p>HTML 文件</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-html" data-lang="html">&lt;<span style="color:#f92672">html</span>&gt;
+&lt;<span style="color:#f92672">head</span>&gt;
+    &lt;<span style="color:#f92672">head</span>&gt;
+        &lt;<span style="color:#f92672">title</span>&gt;Simple Calc&lt;/<span style="color:#f92672">title</span>&gt; 
+        &lt;<span style="color:#f92672">meta</span> <span style="color:#a6e22e">name</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;viewport&#34;</span> <span style="color:#a6e22e">content</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;width=device-width, initial-scale=1.0&#34;</span>&gt;  
+    &lt;/<span style="color:#f92672">head</span>&gt;
+&lt;/<span style="color:#f92672">head</span>&gt;
+&lt;<span style="color:#f92672">body</span>&gt;
+    
+    &lt;<span style="color:#f92672">label</span> <span style="color:#a6e22e">for</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;&#34;</span>&gt;Input First&lt;/<span style="color:#f92672">label</span>&gt;
+    &lt;<span style="color:#f92672">input</span> <span style="color:#a6e22e">type</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;number&#34;</span> <span style="color:#a6e22e">style</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;width: 250px; margin: 0 auto;&#34;</span> <span style="color:#a6e22e">id</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;input1&#34;</span> &gt;
+    &lt;<span style="color:#f92672">label</span> <span style="color:#a6e22e">for</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;&#34;</span>&gt;Input Second&lt;/<span style="color:#f92672">label</span>&gt;
+    &lt;<span style="color:#f92672">input</span> <span style="color:#a6e22e">type</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;number&#34;</span> <span style="color:#a6e22e">style</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;width: 250px; margin: 0 auto;&#34;</span> <span style="color:#a6e22e">id</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;input2&#34;</span> &gt;
+    &lt;<span style="color:#f92672">input</span> <span style="color:#a6e22e">type</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;button&#34;</span> <span style="color:#a6e22e">style</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;width: 125px; margin: 0 auto;&#34;</span> <span style="color:#a6e22e">value</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;Add ( + )&#34;</span> <span style="color:#a6e22e">id</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;add&#34;</span>&gt; 
+    &lt;<span style="color:#f92672">hr</span>&gt;
+    &lt;<span style="color:#f92672">input</span> <span style="color:#a6e22e">type</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;number&#34;</span> <span style="color:#a6e22e">style</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;width: 250px; margin: 0 auto;&#34;</span> <span style="color:#a6e22e">id</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;output1&#34;</span> <span style="color:#a6e22e">disabled</span>&gt;
+ 
+
+&lt;/<span style="color:#f92672">body</span>&gt;
+&lt;/<span style="color:#f92672">html</span>&gt;
+</code></pre></div><p>实际上，我发现的一个问题是，我需要刷新 HTML 元素绑定才能从中获得最新的值。</p>
+<p>可能是我什么地方做错了，可能也有别人遇到了这个问题，没办法了。</p>
+<p>无论如何总结一下，sciter 是 Go 中用来构建可视化应用最具前途的 GUI 库了。</p>
+<p>希望对你有帮助！</p>
+
+    </div>
+  </article>
+
+  <div id="disqus_thread"></div>
+<script type="application/javascript">
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "zyfdegh" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="https://zyfdegh.github.io/images/hugo-logo.png" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+
+    
+  </body>
+</html>
+

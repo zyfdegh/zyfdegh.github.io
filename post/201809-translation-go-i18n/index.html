@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.64.1" />
+
+
+<title>[译] 借助 go-i18n 更简单地实现全球化 - 独行的蚂蚁 - 博客</title>
+<meta property="og:title" content="[译] 借助 go-i18n 更简单地实现全球化 - 独行的蚂蚁 - 博客">
+
+
+
+
+  
+  <meta property="description" content="使用 Markdown 的表格，公式与绘制图形">
+  
+
+
+
+
+<link rel="icon" href="https://zyfdegh.github.io/images/" type="image/x-icon"/>
+<link rel="stylesheet" href="https://zyfdegh.github.io/css/main.css" media="all">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Merriweather:400|Lato:400,400italic,700">
+
+    <script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+  MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+  });
+  MathJax.Hub.Queue(function() {
+    
+    
+    
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i < all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+
+  MathJax.Hub.Config({
+  
+  TeX: { equationNumbers: { autoNumber: "AMS" } }
+  });
+</script>
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="https://zyfdegh.github.io/" class="nav-logo">
+    <img src="https://zyfdegh.github.io/images/ant.png" 
+         width="50" 
+         height="50" 
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="https://zyfdegh.github.io/">Articles</a></li>
+    
+    <li><a href="https://zyfdegh.github.io/about/">About</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">4 min read</span>
+    
+
+    <h1 class="article-title">[译] 借助 go-i18n 更简单地实现全球化</h1>
+
+    
+    <span class="article-date">September 4, 2018</span>
+    
+
+    <div class="article-content">
+      <p>原文：<a href="https://phraseapp.com/blog/posts/internationalisation-in-go-with-go-i18n/">《A Simple Way to Internationalize in Go with go-i18n》</a></p>
+<p>作者：Theo PhraseApp Content Team</p>
+<!-- raw HTML omitted -->
+<p>以前我们用了 <code>golang.org/x/text</code> 包来<a href="https://phraseapp.com/blog/posts/internationalization-i18n-go/">实现 Go 的国际化</a>。
+（译注：这一篇译文在 <a href="https://zyfdegh.github.io/post/201805-translation-go-i18n/">《[译] 手把手教你 Go 程序的国际化和本土化》</a>）
+尽管那个包拓展性很好，但操作起来较为困难，而且文档也不清楚。要想用更简单的办法来本地化我们的
+Go 程序，还有另一种方案，叫 <a href="https://github.com/nicksnyder/go-i18n">go-i18n</a>。</p>
+<p>go-i18n 支持：</p>
+<ul>
+<li>200 多种语言的复数形式</li>
+<li>带有命名的字符串</li>
+<li>任一种格式的翻译文件（如 JSON, TOML, YAML 等）</li>
+<li>文档很好</li>
+</ul>
+<p>但它当前还不支持性别规则，也不支持复杂的模版变量。不过对于大多数情况，本地化现有程序已经足够了。
+这篇教程中，我们将看到一些实际案例，同时试着去集成 PhraseApp 的上下文编辑器到程序中。所有示例
+代码都托管在 <a href="https://github.com/PhraseApp-Blog/phrase-app-go-i18n">GitHub</a> 上了。来开始吧！</p>
+<h2 id="定义和翻译消息">定义和翻译消息</h2>
+<p>在使用这个库之前，我们需要先将它下载到 <strong>$GOPATH</strong>，使用下面命令：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ go get -u github.com/nicksnyder/go-i18n/v2/i18n
+</code></pre></div><p>接着新建一个文件，来测试一下翻译：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ touch example.go
+</code></pre></div><p><strong>文件：</strong> example.go</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> (
+  <span style="color:#e6db74">&#34;github.com/nicksnyder/go-i18n/v2/i18n&#34;</span>
+  <span style="color:#e6db74">&#34;golang.org/x/text/language&#34;</span>
+)
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+}
+</code></pre></div><p>第一步是建立语言包，包含支持的语言和默认语言。我们来建一个默认为英语的：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// 第一步: 新建语言包
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+  <span style="color:#a6e22e">bundle</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">i18n</span>.<span style="color:#a6e22e">Bundle</span>{<span style="color:#a6e22e">DefaultLanguage</span>: <span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">English</span>}
+}
+</code></pre></div><p>为了进行翻译，需要创建一个 Localizer 对象，传入我们需要翻译的语言列表。有了一系列语言包后，
+程序会按照语言标签去选择对应的语言包。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// 第二步：使用一到多个语言标签来创建 localizer
+</span><span style="color:#75715e"></span><span style="color:#a6e22e">loc</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">i18n</span>.<span style="color:#a6e22e">NewLocalizer</span>(<span style="color:#a6e22e">bundle</span>, <span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">English</span>.<span style="color:#a6e22e">String</span>())
+</code></pre></div><p>现在还没有任何要翻译的消息，我们来加一些：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// 第三步：定义消息
+</span><span style="color:#75715e"></span><span style="color:#a6e22e">messages</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">i18n</span>.<span style="color:#a6e22e">Message</span>{
+  <span style="color:#a6e22e">ID</span>: <span style="color:#e6db74">&#34;Emails&#34;</span>,
+  <span style="color:#a6e22e">Description</span>: <span style="color:#e6db74">&#34;The number of unread emails a user has&#34;</span>,
+  <span style="color:#a6e22e">One</span>: <span style="color:#e6db74">&#34;{{.Name}} has {{.Count}} email.&#34;</span>,
+  <span style="color:#a6e22e">Other</span>: <span style="color:#e6db74">&#34;{{.Name}} has {{.Count}} emails.&#34;</span>,
+}
+</code></pre></div><p>从上面能看到复数规则的使用，还用到了模版变量。</p>
+<p>最后一步，进行翻译操作：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// 第四步：翻译消息
+</span><span style="color:#75715e"></span><span style="color:#a6e22e">messagesCount</span> <span style="color:#f92672">:=</span> <span style="color:#ae81ff">2</span>
+<span style="color:#a6e22e">translation</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">loc</span>.<span style="color:#a6e22e">MustLocalize</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">i18n</span>.<span style="color:#a6e22e">LocalizeConfig</span>{
+  <span style="color:#a6e22e">DefaultMessage</span>: <span style="color:#a6e22e">messages</span>,
+  <span style="color:#a6e22e">TemplateData</span>: <span style="color:#66d9ef">map</span>[<span style="color:#66d9ef">string</span>]<span style="color:#66d9ef">interface</span>{}{
+    <span style="color:#e6db74">&#34;Name&#34;</span>: <span style="color:#e6db74">&#34;Theo&#34;</span>,
+    <span style="color:#e6db74">&#34;Count&#34;</span>: <span style="color:#a6e22e">messagesCount</span>,
+  },
+  <span style="color:#a6e22e">PluralCount</span>: <span style="color:#a6e22e">messagesCount</span>,
+})
+
+<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#a6e22e">translation</span>)
+</code></pre></div><p>如果出错的话，<strong>MustLocalize</strong> 方法会出现 panic。有一个相关的方法叫 <strong>Localize</strong> ，会返回错误。</p>
+<p>上面的代码中，我们传了 <strong>messagesCount</strong> 到 <strong>TemplateData</strong> 和
+<strong>PluralCount</strong> 中，以正确生成复数，这至关重要。</p>
+<h3 id="定义分隔符">定义分隔符</h3>
+<p>如果不喜欢双括弧的话，我们有选项去定义另外的分割符。只需要设定 <strong>LeftDelim</strong> 和
+<strong>RightDelim</strong> 并把消息里的字符串设置为对应的符号就行了。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// 定义不同的分隔符
+</span><span style="color:#75715e"></span><span style="color:#a6e22e">messages</span> = <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">i18n</span>.<span style="color:#a6e22e">Message</span>{
+  <span style="color:#a6e22e">ID</span>: <span style="color:#e6db74">&#34;Notifications&#34;</span>,
+  <span style="color:#a6e22e">Description</span>: <span style="color:#e6db74">&#34;The number of unread notifications a user has&#34;</span>,
+  <span style="color:#a6e22e">One</span>: <span style="color:#e6db74">&#34;&lt;&lt;.Name&gt;&gt; has &lt;&lt;.Count&gt;&gt; notification.&#34;</span>,
+  <span style="color:#a6e22e">Other</span>: <span style="color:#e6db74">&#34;&lt;&lt;.Name&gt;&gt; has &lt;&lt;.Count&gt;&gt; notifications.&#34;</span>,
+  <span style="color:#a6e22e">LeftDelim</span>: <span style="color:#e6db74">&#34;&lt;&lt;&#34;</span>,
+  <span style="color:#a6e22e">RightDelim</span>: <span style="color:#e6db74">&#34;&gt;&gt;&#34;</span>,
+}
+
+<span style="color:#a6e22e">notificationsCount</span> <span style="color:#f92672">:=</span> <span style="color:#ae81ff">1</span>
+<span style="color:#a6e22e">translation</span> = <span style="color:#a6e22e">loc</span>.<span style="color:#a6e22e">MustLocalize</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">i18n</span>.<span style="color:#a6e22e">LocalizeConfig</span>{
+  <span style="color:#a6e22e">DefaultMessage</span>: <span style="color:#a6e22e">messages</span>,
+  <span style="color:#a6e22e">TemplateData</span>: <span style="color:#66d9ef">map</span>[<span style="color:#66d9ef">string</span>]<span style="color:#66d9ef">interface</span>{}{
+    <span style="color:#e6db74">&#34;Name&#34;</span>: <span style="color:#e6db74">&#34;Theo&#34;</span>,
+    <span style="color:#e6db74">&#34;Count&#34;</span>: <span style="color:#a6e22e">notificationsCount</span>,
+  },
+  <span style="color:#a6e22e">PluralCount</span>: <span style="color:#a6e22e">notificationsCount</span>,
+})
+
+<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#a6e22e">translation</span>)
+</code></pre></div><h3 id="从文件加载消息">从文件加载消息</h3>
+<p>我们也可以从文件加载翻译内容。要这样用的话，需要先在语言包里定义 Unmarshal 函数，然后从某个文件
+读取消息。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// 从文件解析
+</span><span style="color:#75715e"></span><span style="color:#a6e22e">bundle</span>.<span style="color:#a6e22e">RegisterUnmarshalFunc</span>(<span style="color:#e6db74">&#34;json&#34;</span>, <span style="color:#a6e22e">json</span>.<span style="color:#a6e22e">Unmarshal</span>)
+<span style="color:#a6e22e">bundle</span>.<span style="color:#a6e22e">MustLoadMessageFile</span>(<span style="color:#e6db74">&#34;en.json&#34;</span>)
+<span style="color:#a6e22e">bundle</span>.<span style="color:#a6e22e">MustLoadMessageFile</span>(<span style="color:#e6db74">&#34;el.json&#34;</span>)
+
+<span style="color:#a6e22e">loc</span> = <span style="color:#a6e22e">i18n</span>.<span style="color:#a6e22e">NewLocalizer</span>(<span style="color:#a6e22e">bundle</span>, <span style="color:#e6db74">&#34;el&#34;</span>)
+<span style="color:#a6e22e">messagesCount</span> = <span style="color:#ae81ff">10</span>
+<span style="color:#a6e22e">translation</span> = <span style="color:#a6e22e">loc</span>.<span style="color:#a6e22e">MustLocalize</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">i18n</span>.<span style="color:#a6e22e">LocalizeConfig</span>{
+  <span style="color:#a6e22e">MessageID</span>: <span style="color:#e6db74">&#34;messages&#34;</span>,
+  <span style="color:#a6e22e">TemplateData</span>: <span style="color:#66d9ef">map</span>[<span style="color:#66d9ef">string</span>]<span style="color:#66d9ef">interface</span>{}{
+    <span style="color:#e6db74">&#34;Name&#34;</span>: <span style="color:#e6db74">&#34;Alex&#34;</span>,
+    <span style="color:#e6db74">&#34;Count&#34;</span>: <span style="color:#a6e22e">messagesCount</span>,
+  },
+  <span style="color:#a6e22e">PluralCount</span>: <span style="color:#a6e22e">messagesCount</span>,
+})
+
+<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#a6e22e">translation</span>)
+</code></pre></div><p>JSON 文件的内容如下：</p>
+<p><strong>文件：</strong> el.json</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-json" data-lang="json">{
+<span style="color:#f92672">&#34;hello_world&#34;</span>: <span style="color:#e6db74">&#34;Για σου Κόσμε&#34;</span>,
+<span style="color:#f92672">&#34;messages&#34;</span>: {
+  <span style="color:#f92672">&#34;description&#34;</span>: <span style="color:#e6db74">&#34;The number of messages a person has&#34;</span>,
+  <span style="color:#f92672">&#34;one&#34;</span>: <span style="color:#e6db74">&#34;Ο {{.Name}} έχει {{.Count}} μύνημα.&#34;</span>,
+  <span style="color:#f92672">&#34;other&#34;</span>: <span style="color:#e6db74">&#34;Ο {{.Name}} έχει {{.Count}} μύνηματα.&#34;</span>
+  }
+}
+</code></pre></div><p><strong>文件：</strong> en.json</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-json" data-lang="json">{
+<span style="color:#f92672">&#34;hello_world&#34;</span>: <span style="color:#e6db74">&#34;Hello World&#34;</span>,
+<span style="color:#f92672">&#34;messages&#34;</span>: {
+  <span style="color:#f92672">&#34;description&#34;</span>: <span style="color:#e6db74">&#34;The number of messages a person has&#34;</span>,
+  <span style="color:#f92672">&#34;one&#34;</span>: <span style="color:#e6db74">&#34;{{.Name}} has {{.Count}} message.&#34;</span>,
+  <span style="color:#f92672">&#34;other&#34;</span>: <span style="color:#e6db74">&#34;{{.Name}} has {{.Count}} messages.&#34;</span>
+  }
+}
+</code></pre></div><p>试着运行完整的程序，看，翻译完成了。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ go run example.go
+
+Theo has <span style="color:#ae81ff">2</span> emails.
+Nick has <span style="color:#ae81ff">1</span> notification.
+Ο Alex έχει <span style="color:#ae81ff">10</span> μύνηματα.
+</code></pre></div><h2 id="使用命令行工具">使用命令行工具</h2>
+<p>这个库还带了个命令行工具，用来自动提取与合并翻译文件。</p>
+<p>首先，我们需要安装</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ go get -u github.com/nicksnyder/go-i18n/v2/goi18n
+</code></pre></div><p>目前它提供了两个命令：</p>
+<ul>
+<li>extract：从源程序提取消息并输出到特定格式的文件</li>
+<li>merge：合并两到多个特定格式文件中的消息</li>
+</ul>
+<p>来看看这两个命令的使用示例。</p>
+<p>先创建一个文件，名为 messages.go</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ touch messages.go
+</code></pre></div><p><strong>文件：</strong> messages.go</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> <span style="color:#e6db74">&#34;github.com/nicksnyder/go-i18n/v2/i18n&#34;</span>
+
+<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">messages</span> = <span style="color:#a6e22e">i18n</span>.<span style="color:#a6e22e">Message</span>{
+    <span style="color:#a6e22e">ID</span>: <span style="color:#e6db74">&#34;invoices&#34;</span>,
+    <span style="color:#a6e22e">Description</span>: <span style="color:#e6db74">&#34;The number of invoices a person has&#34;</span>,
+    <span style="color:#a6e22e">One</span>: <span style="color:#e6db74">&#34;You can {{.Count}} invoice&#34;</span>,
+    <span style="color:#a6e22e">Other</span>: <span style="color:#e6db74">&#34;You have {{.Count}} invoices&#34;</span>,
+}
+</code></pre></div><p>使用 extract 命令来导出消息为 JSON 格式。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ mkdir out
+$ goi18n extract -outdir<span style="color:#f92672">=</span>out -format<span style="color:#f92672">=</span>json newMessages.go
+</code></pre></div><p><strong>文件：</strong> out/active.en.json</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-json" data-lang="json">{
+  <span style="color:#f92672">&#34;invoices&#34;</span>: {
+    <span style="color:#f92672">&#34;description&#34;</span>: <span style="color:#e6db74">&#34;The number of invoices a person has&#34;</span>,
+    <span style="color:#f92672">&#34;one&#34;</span>: <span style="color:#e6db74">&#34;You can {{.Count}} invoice&#34;</span>,
+    <span style="color:#f92672">&#34;other&#34;</span>: <span style="color:#e6db74">&#34;You have {{.Count}} invoices&#34;</span>
+  }
+}
+</code></pre></div><p>接着对两个已有的翻译文件，我们来合并它们：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ goi18n merge -outdir<span style="color:#f92672">=</span>out -format<span style="color:#f92672">=</span>json en.json out/active.en.json
+</code></pre></div><p><strong>文件：</strong> out/active.en.json</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-json" data-lang="json">{
+  <span style="color:#f92672">&#34;hello_world&#34;</span>: <span style="color:#e6db74">&#34;Hello World&#34;</span>,
+  <span style="color:#f92672">&#34;invoices&#34;</span>: {
+    <span style="color:#f92672">&#34;description&#34;</span>: <span style="color:#e6db74">&#34;The number of invoices a person has&#34;</span>,
+    <span style="color:#f92672">&#34;one&#34;</span>: <span style="color:#e6db74">&#34;You can {{.Count}} invoice&#34;</span>,
+    <span style="color:#f92672">&#34;other&#34;</span>: <span style="color:#e6db74">&#34;You have {{.Count}} invoices&#34;</span>
+  },
+  <span style="color:#f92672">&#34;messages&#34;</span>: {
+    <span style="color:#f92672">&#34;description&#34;</span>: <span style="color:#e6db74">&#34;The number of messages a person has&#34;</span>,
+    <span style="color:#f92672">&#34;one&#34;</span>: <span style="color:#e6db74">&#34;{{.Name}} has {{.Count}} message.&#34;</span>,
+    <span style="color:#f92672">&#34;other&#34;</span>: <span style="color:#e6db74">&#34;{{.Name}} has {{.Count}} messages.&#34;</span>
+  }
+}
+</code></pre></div><p>如你所见，我们已将所有消息都合并到单个文件里了。</p>
+<h2 id="集成-phraseapp-上下文编辑器">集成 PhraseApp 上下文编辑器</h2>
+<p>PhraseApp 的<a href="https://phraseapp.com/blog/posts/use-phraseapp-in-context-editor/">上下文编辑器</a>是个帮你在翻译时提升质量的工具，
+它提供有用的上下文信息。借助这个编辑器，你可以在编辑文本的同时预览你的网站。</p>
+<p>尽管 go-i18n 还没有内置这个编辑器，但你可以按照这篇向导来集成：</p>
+<p><a href="https://help.phraseapp.com/in-context-editor/configure/integrate-in-context-editor-into-any-web-framework/">https://help.phraseapp.com/in-context-editor/configure/integrate-in-context-editor-into-any-web-framework/</a></p>
+<p>然后我们可以注册自己的模版过滤器，并集成到自己的应用中。</p>
+<p>来看看如何通过简单几步使用它。</p>
+<p>新建一个叫 <strong>inContext.go</strong> 的文件，加入下面代码。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ touch inContext.go
+</code></pre></div><p><strong>文件：</strong> inContext.go</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> (
+	<span style="color:#e6db74">&#34;html/template&#34;</span>
+	<span style="color:#e6db74">&#34;log&#34;</span>
+	<span style="color:#e6db74">&#34;net/http&#34;</span>
+	<span style="color:#e6db74">&#34;github.com/nicksnyder/go-i18n/v2/i18n&#34;</span>
+	<span style="color:#e6db74">&#34;golang.org/x/text/language&#34;</span>
+	<span style="color:#e6db74">&#34;encoding/json&#34;</span>
+	<span style="color:#e6db74">&#34;flag&#34;</span>
+	<span style="color:#e6db74">&#34;fmt&#34;</span>
+)
+
+
+<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">page</span> = <span style="color:#a6e22e">template</span>.<span style="color:#a6e22e">Must</span>(<span style="color:#a6e22e">template</span>.<span style="color:#a6e22e">New</span>(<span style="color:#e6db74">&#34;&#34;</span>).<span style="color:#a6e22e">Parse</span>(<span style="color:#e6db74">`</span><span style="color:#e6db74">
+</span><span style="color:#e6db74">&lt;!DOCTYPE html&gt;
+</span><span style="color:#e6db74">&lt;html&gt;
+</span><span style="color:#e6db74">&lt;body&gt;
+</span><span style="color:#e6db74">&lt;h1&gt;</span><span style="color:#75715e">{{</span> <span style="color:#a6e22e">.Title</span> <span style="color:#75715e">}}</span><span style="color:#e6db74">&lt;/h1&gt;
+</span><span style="color:#e6db74"></span><span style="color:#75715e">{{</span><span style="color:#66d9ef">range</span> <span style="color:#a6e22e">.Paragraphs</span><span style="color:#75715e">}}</span><span style="color:#e6db74">&lt;p&gt;</span><span style="color:#75715e">{{</span> <span style="color:#a6e22e">.</span> <span style="color:#75715e">}}</span><span style="color:#e6db74">&lt;/p&gt;</span><span style="color:#75715e">{{</span><span style="color:#66d9ef">end</span><span style="color:#75715e">}}</span><span style="color:#e6db74">
+</span><span style="color:#e6db74">&lt;/body&gt;
+</span><span style="color:#e6db74">&lt;/html&gt;
+</span><span style="color:#e6db74"></span><span style="color:#e6db74">`</span>))
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+
+	<span style="color:#a6e22e">bundle</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">i18n</span>.<span style="color:#a6e22e">Bundle</span>{<span style="color:#a6e22e">DefaultLanguage</span>: <span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">English</span>}
+	<span style="color:#a6e22e">bundle</span>.<span style="color:#a6e22e">RegisterUnmarshalFunc</span>(<span style="color:#e6db74">&#34;json&#34;</span>, <span style="color:#a6e22e">json</span>.<span style="color:#a6e22e">Unmarshal</span>)
+	<span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>,<span style="color:#a6e22e">lang</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> []<span style="color:#66d9ef">string</span>{<span style="color:#e6db74">&#34;en&#34;</span> ,<span style="color:#e6db74">&#34;el&#34;</span>} {
+		<span style="color:#a6e22e">bundle</span>.<span style="color:#a6e22e">MustLoadMessageFile</span>(<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Sprintf</span>(<span style="color:#e6db74">&#34;active.%v.json&#34;</span>, <span style="color:#a6e22e">lang</span>))
+	}
+
+	<span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">HandleFunc</span>(<span style="color:#e6db74">&#34;/&#34;</span>, <span style="color:#66d9ef">func</span>(<span style="color:#a6e22e">w</span> <span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">ResponseWriter</span>, <span style="color:#a6e22e">r</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">Request</span>) {
+		<span style="color:#a6e22e">lang</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">r</span>.<span style="color:#a6e22e">FormValue</span>(<span style="color:#e6db74">&#34;lang&#34;</span>)
+		<span style="color:#a6e22e">accept</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">r</span>.<span style="color:#a6e22e">Header</span>.<span style="color:#a6e22e">Get</span>(<span style="color:#e6db74">&#34;Accept-Language&#34;</span>)
+		<span style="color:#a6e22e">localizer</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">i18n</span>.<span style="color:#a6e22e">NewLocalizer</span>(<span style="color:#a6e22e">bundle</span>, <span style="color:#a6e22e">lang</span>, <span style="color:#a6e22e">accept</span>)
+
+		<span style="color:#a6e22e">name</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">r</span>.<span style="color:#a6e22e">FormValue</span>(<span style="color:#e6db74">&#34;name&#34;</span>)
+		<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">name</span> <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;&#34;</span> {
+			<span style="color:#a6e22e">name</span> = <span style="color:#e6db74">&#34;Alex&#34;</span>
+		}
+
+		<span style="color:#a6e22e">myInvoicesCount</span> <span style="color:#f92672">:=</span> <span style="color:#ae81ff">10</span>
+
+		<span style="color:#a6e22e">helloPerson</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">localizer</span>.<span style="color:#a6e22e">MustLocalize</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">i18n</span>.<span style="color:#a6e22e">LocalizeConfig</span>{
+			<span style="color:#a6e22e">DefaultMessage</span>: <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">i18n</span>.<span style="color:#a6e22e">Message</span>{
+				<span style="color:#a6e22e">ID</span>:    <span style="color:#e6db74">&#34;HelloPerson&#34;</span>,
+			},
+			<span style="color:#a6e22e">TemplateData</span>: <span style="color:#66d9ef">map</span>[<span style="color:#66d9ef">string</span>]<span style="color:#66d9ef">interface</span>{}{
+				<span style="color:#e6db74">&#34;Name&#34;</span>: <span style="color:#a6e22e">name</span>,
+			},
+		})
+
+		<span style="color:#a6e22e">myInvoices</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">localizer</span>.<span style="color:#a6e22e">MustLocalize</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">i18n</span>.<span style="color:#a6e22e">LocalizeConfig</span>{
+			<span style="color:#a6e22e">DefaultMessage</span>: <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">i18n</span>.<span style="color:#a6e22e">Message</span>{
+				<span style="color:#a6e22e">ID</span>:          <span style="color:#e6db74">&#34;invoices&#34;</span>,
+			},
+			<span style="color:#a6e22e">TemplateData</span>: <span style="color:#66d9ef">map</span>[<span style="color:#66d9ef">string</span>]<span style="color:#66d9ef">interface</span>{}{
+				<span style="color:#e6db74">&#34;Count&#34;</span>: <span style="color:#a6e22e">myInvoicesCount</span>,
+			},
+			<span style="color:#a6e22e">PluralCount</span>: <span style="color:#a6e22e">myInvoicesCount</span>,
+		})
+
+		<span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">page</span>.<span style="color:#a6e22e">Execute</span>(<span style="color:#a6e22e">w</span>, <span style="color:#66d9ef">map</span>[<span style="color:#66d9ef">string</span>]<span style="color:#66d9ef">interface</span>{}{
+			<span style="color:#e6db74">&#34;Title&#34;</span>: <span style="color:#a6e22e">helloPerson</span>,
+			<span style="color:#e6db74">&#34;Paragraphs&#34;</span>: []<span style="color:#66d9ef">string</span>{
+				<span style="color:#a6e22e">myInvoices</span>,
+			},
+		})
+		<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">err</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">nil</span> {
+			panic(<span style="color:#a6e22e">err</span>)
+		}
+	})
+
+	<span style="color:#a6e22e">log</span>.<span style="color:#a6e22e">Fatal</span>(<span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">ListenAndServe</span>(<span style="color:#e6db74">&#34;:8080&#34;</span>, <span style="color:#66d9ef">nil</span>))
+}
+</code></pre></div><p>这段程序创建一个 Web 服务器，提供一个带有默认语言的页面。如果你打开浏览器并访问 <code>localhost:8080/?lang=el</code>
+将会看到翻译后的希腊语页面。</p>
+<p>要想集成 PhraseApp 的上下文编辑器进去，我们需要把模版变量封装到 <code>{{__phrase_</code> 和 <code>__}}</code>
+两个分隔符之间，接着加载 JavaScript 客户端。</p>
+<p>可以使用 <a href="https://golang.org/pkg/text/template/#Template.Funcs">https://golang.org/pkg/text/template/#Template.Funcs</a> 函数去注册我们自己的翻译过滤器，
+一旦配置好后，就可以用来封装上面的参数。现在就来做。</p>
+<p><strong>文件：</strong> inContext.go</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// 从配置加载
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">isPhraseAppEnabled</span> <span style="color:#66d9ef">bool</span>
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">init</span>()  {
+	<span style="color:#a6e22e">flag</span>.<span style="color:#a6e22e">BoolVar</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">isPhraseAppEnabled</span>,<span style="color:#e6db74">&#34;phraseApp&#34;</span>, <span style="color:#66d9ef">false</span>, <span style="color:#e6db74">&#34;Enable PhraseApp mode&#34;</span>)
+	<span style="color:#a6e22e">flag</span>.<span style="color:#a6e22e">Parse</span>()
+}
+
+<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">apiToken</span> = <span style="color:#a6e22e">os</span>.<span style="color:#a6e22e">Getenv</span>(<span style="color:#e6db74">&#34;PHRASE_APP_TOKEN&#34;</span>)
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">translate</span>(<span style="color:#a6e22e">s</span> <span style="color:#66d9ef">string</span>) <span style="color:#66d9ef">string</span>  {
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">isPhraseAppEnabled</span> {
+		<span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;{{__phrase_&#34;</span> <span style="color:#f92672">+</span> <span style="color:#a6e22e">s</span> <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;__}}&#34;</span>
+	} <span style="color:#66d9ef">else</span> {
+		<span style="color:#66d9ef">return</span> <span style="color:#a6e22e">s</span>
+	}
+}
+
+<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">funcs</span> = <span style="color:#a6e22e">template</span>.<span style="color:#a6e22e">FuncMap</span>{
+    <span style="color:#e6db74">&#34;translate&#34;</span>: <span style="color:#a6e22e">translate</span>,
+}
+</code></pre></div><p>这里我们加了一个 translate 函数，它按照 <strong>phraseApp</strong> 的配置（去设置是不是替换字符串为模版变量）。</p>
+<p>现在只需要把这个过滤器加到每个模版参数上，再加上 PhraseApp 脚本就好了。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-js" data-lang="js"><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">page</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">template</span>.<span style="color:#a6e22e">Must</span>(<span style="color:#a6e22e">template</span>.<span style="color:#a6e22e">New</span>(<span style="color:#e6db74">&#34;&#34;</span>).<span style="color:#a6e22e">Funcs</span>(<span style="color:#a6e22e">funcs</span>).<span style="color:#a6e22e">Parse</span>(<span style="color:#e6db74">`</span><span style="color:#e6db74">
+</span><span style="color:#e6db74">&lt;!DOCTYPE html&gt;
+</span><span style="color:#e6db74">&lt;html lang= {{ .CurrentLocale }}&gt;
+</span><span style="color:#e6db74">&lt;body&gt;
+</span><span style="color:#e6db74">&lt;h1&gt;{{ translate .Title }}&lt;/h1&gt;
+</span><span style="color:#e6db74">{{range .Paragraphs}}&lt;p&gt;{{ translate . }}&lt;/p&gt;{{end}}
+</span><span style="color:#e6db74">&lt;/body&gt;
+</span><span style="color:#e6db74">
+</span><span style="color:#e6db74">window.PHRASEAPP_CONFIG = {
+</span><span style="color:#e6db74">   projectId: {{ .apiToken }}
+</span><span style="color:#e6db74">};
+</span><span style="color:#e6db74">(function() {
+</span><span style="color:#e6db74">   var phraseapp = document.createElement(&#39;script&#39;); phraseapp.type = &#39;text/javascript&#39;; phraseapp.async = true;
+</span><span style="color:#e6db74">   phraseapp.src = [&#39;https://&#39;, &#39;phraseapp.com/assets/in-context-editor/2.0/app.js?&#39;, new Date().getTime()].join(&#39;&#39;);
+</span><span style="color:#e6db74">   var s = document.getElementsByTagName(&#39;script&#39;)[0]; s.parentNode.insertBefore(phraseapp, s);
+</span><span style="color:#e6db74">})();
+</span><span style="color:#e6db74">
+</span><span style="color:#e6db74">&lt;/html&gt;
+</span><span style="color:#e6db74"></span><span style="color:#e6db74">`</span>))
+</code></pre></div><p>更新模版以包含 <strong>apiToken</strong> 参数。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#a6e22e">err</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">page</span>.<span style="color:#a6e22e">Execute</span>(<span style="color:#a6e22e">w</span>, <span style="color:#66d9ef">map</span>[<span style="color:#66d9ef">string</span>]<span style="color:#66d9ef">interface</span>{}{
+			<span style="color:#e6db74">&#34;apiToken&#34;</span>: <span style="color:#a6e22e">apiToken</span>,
+			<span style="color:#e6db74">&#34;Title&#34;</span>: <span style="color:#a6e22e">helloPerson</span>,
+			<span style="color:#e6db74">&#34;CurrentLocale&#34;</span>: <span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">Greek</span>.<span style="color:#a6e22e">String</span>(),
+			<span style="color:#e6db74">&#34;Paragraphs&#34;</span>: []<span style="color:#66d9ef">string</span>{
+				<span style="color:#a6e22e">myInvoices</span>,
+			},
+		})
+</code></pre></div><p>如果你没有令牌（token），到 <a href="https://phraseapp.com/">https://phraseapp.com/</a> 注册并使用试用版。</p>
+<p>在你设置好账号后，就可以新建项目并在 Project Setting 页找到 <strong>projectId</strong> 的令牌。</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<p>在启动服务端前，用这个令牌去设置环境变量 <code>PHRASE_APP_TOKEN</code> 的值。</p>
+<p>打开应用的页面后，你将看到 PhraseApp 登录的页面，在授权后你会看到翻译后的文本，
+这些字符串旁边带有编辑按钮。下面还显示编辑器面板。</p>
+<!-- raw HTML omitted -->
+<p>在这里你可以轻松管理你的翻译啦！</p>
+<h2 id="结论">结论</h2>
+<p>这篇文章里，我们看了如何使用 go-i18n 库去翻译 Go 应用，还了解了如何集成 PhraseApp
+的上下文编辑器进来。如果你还有什么问题，别犹豫，在下面留言或私信我。感谢阅读，下次再见！</p>
+
+    </div>
+  </article>
+
+  <div id="disqus_thread"></div>
+<script type="application/javascript">
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "zyfdegh" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="https://zyfdegh.github.io/images/hugo-logo.png" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+
+    
+  </body>
+</html>
+

@@ -1,0 +1,344 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Posts on 独行的蚂蚁 - 博客</title>
+    <link>https://zyfdegh.github.io/post/</link>
+    <description>Recent content in Posts on 独行的蚂蚁 - 博客</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sun, 31 May 2020 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="https://zyfdegh.github.io/post/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>系统调用：从获取系统时间戳开始</title>
+      <link>https://zyfdegh.github.io/post/202103-timestamp-syscall/</link>
+      <pubDate>Sun, 31 May 2020 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/202103-timestamp-syscall/</guid>
+      <description>想知道 Go 中执行 time.Now() 如何获得系统时间吗? 在调用时，发生了什么。这不是个简单的问题。
+先来发问 来看这样一段代码
+main.go
+package main import ( &amp;#34;time&amp;#34; ) func main() { println(time.Now().Unix()) } 运行，在控制台得到当前时间戳，如 1617174901。
+那么运行时，究竟发生了什么？
+本文档将一步一步，从 Go 源码中 Now() 函数开始剖析，到 Go 如何调用汇编，再到系统调用过程， 解释编程语言如何与操作系统互动。
+Go 源码分析 先找 Go 源码，time.Now() 定义在
+src/time/time.go
+// Now returns the current local time. func Now() Time { sec, nsec, mono := now() //-- ... 转换并返回 --// } 时间来自小写 now() 函数，其定义为
+src/time/time.go
+// Provided by package runtime. func now() (sec int64, nsec int32, mono int64) 这个函数没有方法体，只提供函数名与签名，是由 Go 之外的语言实现的。 Go 中对函数定义的说明，见 https://golang.</description>
+    </item>
+    
+    <item>
+      <title>Building Go Programs for MIPS</title>
+      <link>https://zyfdegh.github.io/post/202002-go-compile-for-mips/</link>
+      <pubDate>Mon, 10 Feb 2020 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/202002-go-compile-for-mips/</guid>
+      <description>I&amp;rsquo;ve got a Lenovo router last year, and I&amp;rsquo;ve been always using it as a room AP to make the WiFi better. Recently, it&amp;rsquo;s getting harder to bypass the Great Firewall so I flashed the router to OpenWrt and try to make it as a VPN client.
+Device Info After everything is done, the router now is a mini Linux server and I can SSH onto it. Here are some infomation of the device.</description>
+    </item>
+    
+    <item>
+      <title>[译] 炫酷的 macOS Mojave 动态时移壁纸是怎么实现的？</title>
+      <link>https://zyfdegh.github.io/post/201809-translation-macos-wallpaper/</link>
+      <pubDate>Sat, 29 Sep 2018 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201809-translation-macos-wallpaper/</guid>
+      <description>原文：《How macOS Mojave’s awesome time-shifting Dynamic Desktop wallpapers work》
+作者：Christian Zibreg
+时间：2018/06/06
+除了抢眼的主要功能外，macOS Mojave 还多了个动态桌面的特性，它能够按照一天中的时间自动选择适合的壁纸。
+本文要点：
+ 动态桌面是 macOS Mojave 10.14 中新功能 Mojave 自带了两款动态壁纸：Mojave 沙漠和日光度图 这些壁纸会从白天到黑夜无缝地切换 壁纸打包在 .HEIC 文件中，含多个图 用户无法创作自己的动态时移壁纸  时移桌面壁纸 由于需要知道你住在哪，动态桌面需要位置服务，就像夜览模式也需要定位才能知道日出、日落时间一样。 “动态桌面根据您的位置更换一天中的图片”，特性说明上写道。
+这几年来，macOS 有个选项，能让你每次登录到系统或者唤醒电脑时，更换桌面壁纸图片。
+你还可以设定每隔几分钟自动切换壁纸，或者每几小时、几天这样。这只是个简单的循环，按照你的选择去图库里切换。 有了动态桌面，这些壁纸能巧妙并且渐进地更改图片，以适合你的位置。
+如何试用动态桌面 语言已经无法恰如其分地形容动态桌面之妙了。最好的办法是你亲身体验一下，去设定一个动态壁纸，还有屏幕节能设定。
+教程：《How to use Nigh Shift for Mac》
+动态桌面需要特殊制作的壁纸。
+动态壁纸是怎么打包的？ 前面提到的，macOS Mojave 带了两款动态壁纸，名字都含有 “动态”。他们都是与 Mojave 浅色、深色模式相配套的主题， 其中一个是沙漠亮暗色主题。
+所以时移桌面的秘诀在哪？
+动态壁纸使用 Apple 的 HEIF 格式的图像文件，省空间，拓展名是 .HEIC。它是 2017 年发布的，用在 iOS 11 还有 macOS High Sierra 上。想要看看所有高分辨率壁纸的话，打开访达（Finder）点击 “转到” 菜单，然后点 “前往文件夹&amp;hellip;” 选项。</description>
+    </item>
+    
+    <item>
+      <title>[译] 借助 go-i18n 更简单地实现全球化</title>
+      <link>https://zyfdegh.github.io/post/201809-translation-go-i18n/</link>
+      <pubDate>Tue, 04 Sep 2018 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201809-translation-go-i18n/</guid>
+      <description>原文：《A Simple Way to Internationalize in Go with go-i18n》
+作者：Theo PhraseApp Content Team
+以前我们用了 golang.org/x/text 包来实现 Go 的国际化。 （译注：这一篇译文在 《[译] 手把手教你 Go 程序的国际化和本土化》） 尽管那个包拓展性很好，但操作起来较为困难，而且文档也不清楚。要想用更简单的办法来本地化我们的 Go 程序，还有另一种方案，叫 go-i18n。
+go-i18n 支持：
+ 200 多种语言的复数形式 带有命名的字符串 任一种格式的翻译文件（如 JSON, TOML, YAML 等） 文档很好  但它当前还不支持性别规则，也不支持复杂的模版变量。不过对于大多数情况，本地化现有程序已经足够了。 这篇教程中，我们将看到一些实际案例，同时试着去集成 PhraseApp 的上下文编辑器到程序中。所有示例 代码都托管在 GitHub 上了。来开始吧！
+定义和翻译消息 在使用这个库之前，我们需要先将它下载到 $GOPATH，使用下面命令：
+$ go get -u github.com/nicksnyder/go-i18n/v2/i18n 接着新建一个文件，来测试一下翻译：
+$ touch example.go 文件： example.go
+package main import ( &amp;#34;github.com/nicksnyder/go-i18n/v2/i18n&amp;#34; &amp;#34;golang.org/x/text/language&amp;#34; ) func main() { } 第一步是建立语言包，包含支持的语言和默认语言。我们来建一个默认为英语的：</description>
+    </item>
+    
+    <item>
+      <title>[译] 骇我呀：解构一个 ELF 文件</title>
+      <link>https://zyfdegh.github.io/post/201808-translation-hack-elf/</link>
+      <pubDate>Tue, 28 Aug 2018 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201808-translation-hack-elf/</guid>
+      <description>原文：《hackme: Deconstructing an ELF File》
+作者：Manohar Vanga
+地址：http://manoharvanga.com/hackme/
+译者按：在网上搜索 ELF 反汇编资料时，无意中发现本文，浏览了一下，作者的有趣经历， 竟然揭开了困惑我很久的问题：编译在二进制文件中的密码安全吗？如果不，会被怎样破解。 稍复杂的运算逻辑，又如何被反汇编后破译？
+于是翻译了这篇文章，与中文阅读者一同学习。
+ 朋友最近让我从他写的一个有点难破解的程序中找到密码，我答应了他。几个小时的短暂破解 过程很有趣，最终我得到了密码，于是写下这篇文章记录这过程，同时也谈谈学到的相关新技术。
+接受这个挑战的几分钟后，我在邮件收到了一个叫 “hackme” 的二进制文件，来开始吧！如果你 有兴趣试试，可以下载这个二进制文件然后回过头来看这篇文章。如果你发现 了我没想到或没留意到的东西，请务必联系我！评论可以发到 manohar.vanga@gmail.com， 标题带有 [hackme]。更新：你可以发送评论到 Hacker News 论坛了。
+尝试运行 我试着运行这个二进制文件并输入一些随机密码。如我所料，都不行，而且打印了一些超级有用的 信息：
+$ ./hackme Password, please? password Oops.. 搞笑的是，在我把这个文件放在 GDB 里运行时，又打了一些特意准备的信息：
+$ $ gdb ./hackme Reading symbols from /tmp/hack/hackme...(no debugging symbols found)...done. (gdb) r Starting program: ./hackme Fuck off! no debuggers! Program exited with code 0364. (gdb) 使用 ptrace 也一样：
+$ strace .</description>
+    </item>
+    
+    <item>
+      <title>感受下汉语的分化：大陆和台湾词语差异对照表</title>
+      <link>https://zyfdegh.github.io/post/201807-words-diff-mandarin-taiwan/</link>
+      <pubDate>Mon, 02 Jul 2018 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201807-words-diff-mandarin-taiwan/</guid>
+      <description>杂述 由于在某台资公司工作，日常交流中，无论是通话还是文字，一腔一调、字里行间都能明显 感受到简体中文（普通话）和繁体中文（台湾）的差异。有多次往返两岸的经历，更是加深 了我对简、繁汉语的认识。百无聊赖，便琢磨这些字词的异同，于是整理出了这篇文章， 以丰富博文内容多(hun)样(luan)性。本人并不是语言学家，也没有任何相关研究，只从 一位计算机从业者的角度，来看两岸语言的细微差异，文中难免会有错误和疏漏，还望多多指正。
+对照表    普通话 臺灣 English     软件 軟體 Software   网络 網路 Network   消息 訊息 Message   数据 資料 Data   文件夹 資料夾 Directory, folder   发邮件 寄信 Send email   发短信 傳簡訊 Send SMS   视频 影片 Video   幻灯片 投影片 Slide, PPT   打印 列印 Print   复印 影印 Copy   死机 宕機 Crash   程序 程式 Programme   调用 呼叫 Call   对象 物件 Object   缓存 快取 Cache   信号 訊號 Signal   实现 實作 Implement   变量 變數 Variable   操作系统 作業係統 Operating system   装系统 灌係統 Install OS   向后兼容 嚮下兼容 Backward compatibility   硬件 硬體 Hardware   服务器 伺服器 Server   笔记本 筆電 Laptop   屏幕、显示器 熒屏、熒幕 Screen   智能手机 智慧型手機 Smart phone   数码（相机） 數位（相機） Digital (camera)   单反（相机） 單眼（相機） Single-lens reflex camera   硬盘 硬碟 Hard disk, HDD   鼠标 滑鼠 Mouse   内存 記憶體 Memory, RAM   项目 專案 Project   硅谷 矽穀 Silicon Valley   刷屏 洗版 Spam   自定义 客製化 custom, user-defined   下划线 底線 underline   白葡萄酒 白酒 White wine   白酒 高粱酒 Spirit, liquor   喜力 海尼根 Heineken   三文鱼 鮭魚 Salmon   芝士 起司 Cheese   薯片 洋芋片 Crisps   酸奶 優格、優酪乳 Yogurt   花生 土豆 Peanut   传统风味 古早味 Traditional flavored   堂食 內用 Dine in   盒饭 便當 Fast food, Bento (日: 弁当)   粉丝 冬粉 Silk noodles   乌贼、墨鱼 花枝 Squid   金枪鱼 鮪（wěi）魚 Tuna   巧克力 朱古力 Chocolate   幼儿园 幼稚園 Kindergarten   小学 國小 Primary school   初中 國中 Junior high, middle school   高考 聯考 College entrance examination   公交车 公車 Bus   地铁 捷運 Subway, metro   摩托车 機車 Motorbike   自行车 腳踏車 Bike, bicycle   出租车 計程車 Taxi   奔驰（汽车品牌） 繽士 Benz   大众（汽车品牌） 福斯 VW   朝鲜 北韓 North Korea   新西兰 紐西蘭 New Zealand   沙特阿拉伯 沙烏地阿拉伯 Saudi Arabia   法（fǎ）国 法（fà）國 Franch   马尔代夫 馬爾蒂夫 Maldives   奥巴马 歐巴馬 Obama   普京 普廷、普丁 Putin   希拉里 希拉蕊 Hillary   乔布斯 賈伯斯 Jobs   斯大林 史達林 Stalin   梵高 梵穀 Van Gogh   莫奈 莫內 Monnai   美女 正妹 Beauty   同事 同仁 Colleague, co-worker   百分之十 十帕 10%, ten percent   垃圾 樂色 Garbage, rubbish, junk   不客气 不會 You&amp;rsquo;re welcome   导弹 飛彈 Missile   坦克 戰車 Tanks   水泥 石屎 Concrete   UFO 幽浮 UFO   激光 鐳射 Laser   新闻 資訊 News   通过 透過 Through   年会 尾牙 Annual meeting   献血 捐血 Blood donation   世界杯 世界盃 World Cup   博客 部落格 Blog   不限量 吃到飽 Unlimited   米（长度） 公尺 Meter   礼物 伴手禮 Souvenir, present, gift   暴雨 豪雨 Heavy rain, rainstorm   车费 車資 Fare   圣诞 耶誕 Christmas   芥末 山葵, washabi（日） Mustard, washabi   地道 道地 Native   堵车 塞車 Traffic jam   熊猫 貓熊 Panda   识别 辨識 Recognize    库 （准备做一个简繁转换的库，相对依靠单个汉字转换的库，转换后的语句会通顺一些）</description>
+    </item>
+    
+    <item>
+      <title>[译] sciter: 使用 HTML/CSS 构建 Golang 图形界面程序</title>
+      <link>https://zyfdegh.github.io/post/201806-translation-go-sciter/</link>
+      <pubDate>Mon, 25 Jun 2018 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201806-translation-go-sciter/</guid>
+      <description>原文：《SCITER : GUI APPLICATION WITH GOLANG USING HTML/CSS》
+作者：Manish Champaneri
+这是来自 sciter 网站的几句话，
+ sciter 桌面 UI 开发带来了一系列网页技术。网页设计者和开发者可以复用他们 的经验和专长来构建看起来现代的桌面应用。
+  多种多样的 GUI 框架提供了不同的 UI 声明和格式语言，比如 QML 和 XAML（Microsoft WPF）。 不同的是， sciter 使用长期证明的、健壮的、灵活的 HTML 和 CSS 来定义 GUI，并 支持 GPU 加速。
+ 在我使用 sciter 之前，我试过了其他几种选择，但没有一个满足我的要求。比如最开始，我用了 andlabs/ui，我写过一篇关于这个库的文章，可以去读这篇 《Golang 图形界面编程》。不过这个库仍在开发中，不足以支持生产环境下的应用。
+另外我用了 Eletron，然而问题是一个简单的计算器软件要占用 150MB，其中 15MB 是 Go 程序， 其余的都是 Electron 本身。
+不久前，我找到了另一个替换品，就是 sciter。现在还能免费试用包含商业性的内容（有一定期限）。
+我假定你已经阅读了开头引用的两段话，如果你想了解更多关于 sciter 的信息，可以访问网站 https://sciter.com/ 。
+下面是 sciter 应用的简单实例
+接下来我分享一下 Go 和 HTML 文件的源码（放在相同目录）。</description>
+    </item>
+    
+    <item>
+      <title>让 macOS 中的 gitk 支持高清显示</title>
+      <link>https://zyfdegh.github.io/post/201806-gitk-retina/</link>
+      <pubDate>Mon, 25 Jun 2018 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201806-gitk-retina/</guid>
+      <description>使用 macOS 有一段时间了，大多数应用都能正常显示，并且效果很好。 但是 gitk（git-gui） 不行，显示毛糙，字体发虚，每次打开都无法接受。
+先放一下修改后的效果图，对比一下，再说修改步骤。
+修改步骤  下载 Retinizer 并安装, 地址 http://retinizer.mikelpr.com/  如果想要还原，再次打开 Retinizer，拖入 Wish.app，然后按钮会变成 De-retinize， 点完就好了。
+除了 gitk 之外，上面的操作过程应该也适用于别的应用，但我还没有试过别的软件。如果你也有相似 的情况，可以试一试看咯。
+最后查了一下原因和原理，发现是 Wish 应用中的 Info.plish 少了一段 NSHighResolutionCapable 的设定，而 Retinazer 正是通过修改这个文件才让程序得以适配 Retina 屏。</description>
+    </item>
+    
+    <item>
+      <title>[译] 选择 Go 嵌入静态资源的库</title>
+      <link>https://zyfdegh.github.io/post/201805-translation-go-static/</link>
+      <pubDate>Tue, 29 May 2018 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201805-translation-go-static/</guid>
+      <description>原文：《Choosing A Library to Embed Static Assets in Go 》
+作者：Tim Shannon
+译者按：文章介绍了 Go 嵌入静态文件的几种方法，接着讲自己在使用某一个库期间遇到的麻烦， 最后比较不同库的特点。对于想要将静态资源构建到可执行文件里的开发者来说，有一定参考意义。 在征得原文作者同意的前提下，我开始了翻译工作。
+背景 Go 中一个常被吹捧的特性是 Go 应用容易部署，原因是 Go 写的程序是静态编译的。但在你 运行一个 Web 应用时，如果需要管理一系列文件的路径和权限的话，这个优势就基本不复存在了。
+解决方法是把必要的文件编译到应用二进制里去。在 Go 中可以用字节切片存放文件中 String literals 形式的字节内容。
+fileData := []byte(&amp;#34;\x1f\x8b\ ... \x0f\x00\x00&amp;#34;) 但这种方法最大的几个坏处是：
+ 更大的二进制文件  对我当前的项目 Lex Library 而言，在没嵌入静态文件之前， 可执行文件大小为 20MB，嵌入后为 21MB。   更长的编译时间  最新 Go 编译器的缓存机制能有效减少构建时间。   编译时更占内存  如果你在用小内存的设备开发，这会影响到你。但对我个人来说，还无需关心。    你需要在开发效率和运维管理时间上作取舍。如果你的应用受众是普罗大众（或者是那些有 个人网上应用的极客用户），就更值得权衡利弊了。
+嵌入方式选择 第一个处理 Go 嵌入静态文件的库，或者说第一个真正知名的，应该是 jteeuwen 的 Go-BinData。 这是个命令行应用，你输入一个文件路径，它会生成包含静态文件的 .</description>
+    </item>
+    
+    <item>
+      <title>[译] 手把手教你 Go 程序的国际化和本土化</title>
+      <link>https://zyfdegh.github.io/post/201805-translation-go-i18n/</link>
+      <pubDate>Fri, 04 May 2018 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201805-translation-go-i18n/</guid>
+      <description>原文：《A Step-by-Step Guide to Go Internationalization (i18n) &amp;amp; Localization (l10n)》
+译者按：原文写得超详细，让我学习了 Go 中未曾使用到的但很有用的 i18n 知识，因而有了翻译文章的想法。 在征得原文作者同意的前提下，我开始了翻译工作。为了适应中文读者，我修改了原文中部分示例代码，还将 其中的希腊文，替换成了简体中文。
+概述 Go 是静态编译的编程语言，最近很受欢迎，因为它简单、性能好而且非常适合开发云端应用。它有强大的能够 处理国际化（i18n）和本地化（l10n）的库，比如处理字符编码、文本转换还有特定地区的文本，但这个包的 文档写得不够好。让我们来看看该怎么使用这个库，并且让我们的 Go 程序能适应不同区域。
+上面说的包是 golang.org/x/text，如果用得好，在你想让应用全球化时能帮上大忙。此包带有一系列 抽象，让你翻译消息（message）、格式化、处理单复数，还有 Unicode 等更简单。
+本文包含两部分，一是大致了解 golang.org/x/text 这个包，看它提供了什么用来格式化和本地化的工具。 由于 Go 擅长构建微服务（microservice）架构，为了不破坏这个传统，在第二部分我们将创建一个微服务 架构的服务端程序，这将让我们对 Go 的国际化和本地化有更深刻的理解。
+为了写这篇教程，我将用最新的 Go 1.10，文章中的代码都已经托放于 GitHub。
+一起开始吧！
+包概览 Go 中大多数消息（message）要么用 fmt 要么通过 template 包处理。
+golang.org/x/text 包含多层子包，提供了很多的工具和函数，并且用 fmt 风格的 API 来格式化 字符串。来看看在实际中怎么使用。
+消息和翻译集（Catalog） 消息（message）是某些想传达给用户的的内容。每条消息根据键（key）进行区分，这可以有很多形式。 比如可以这样创建一条消息：
+p := message.NewPrinter(language.BritishEnglish) p.Printf(&amp;#34;There are %v flowers in our garden.&amp;#34;, 1500) 当调用 NewPrinter 函数时，你要提供语言标签（language tag）。想指定语言时，就使用这些 语言标签。有多种创建标签的方式，比如：</description>
+    </item>
+    
+    <item>
+      <title>符号的英文单词与发音</title>
+      <link>https://zyfdegh.github.io/post/201805-symbol-pronunciations/</link>
+      <pubDate>Thu, 03 May 2018 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201805-symbol-pronunciations/</guid>
+      <description>（本文在移动设备上显示效果可能不佳）
+英文符号听得较多，不过容易混淆。有些还不会读写。所以整理了一下，这样方便以后相互交流。音标只标注不常见的单词。
+   符号 中文（数学） 英文（数学） 发音     `|反引号|backtick, backquote|/bakˈtik/|      ~ 波浪号 tilde /ˈtɪldə/   ! 叹号（阶乘） exclamation mark（factorial） /ˌekskləˈmeɪʃn/（/fæk&amp;rsquo;tɔːrɪəl/）   @ 艾特，at at -   # 井号 sharp, number, hash, hashtag, pound, octothorpe /ˈɒktə(ʊ)θɔːp/   $ 美元符 dollar -   % 百分号（取模） percent（mod） -   ^ 折音号，脱字号 circumflex, caret /ˈsɜːkəmfleks/, /&amp;lsquo;kærət/   &amp;amp; and and -   * 星号 star, asterisk /ˈæstərɪsk/   ( 左圆括号 left parentheses, open parentheses /pəˈrenθəsiːz/   ) 右圆括号 right parentheses, close parentheses /pəˈrenθəsiːz/   - 连字符，横杠（减号） hyphen, dash（minus） /ˈhaɪfn/, /dæʃ/（/&amp;lsquo;maɪnəs/）   _ 下划线 underscore, underline /ʌndə&amp;rsquo;skɔː/   + 加号 plus -   = 等号 equal sign -   [ 左方括号 left brackets, open brackets /ˈbrækɪts/   ] 右方括号 right brackets, close brackets /ˈbrækɪts/   { 左花括号 left braces, open braces /ˈbreɪsɪz/   } 右花括号 right braces, close braces /ˈbreɪsɪz/   \ 反斜线 backslash, escape /&amp;lsquo;bækslæʃ/   | 竖线 pipe, bar -   ; 分号 semicolon /ˌsemɪˈkəʊlən/   : 冒号（比率） colon（ratio of） /ˈkoʊlən/   &amp;rsquo; 单引号 apostrophe, single quote /əˈpɒstrəfɪ/   &amp;rdquo; 双引号 quotation marks, double quote /kwəʊt/   , 逗号 comma /ˈkɒmə/   .</description>
+    </item>
+    
+    <item>
+      <title>LaTeX 公式极简笔记</title>
+      <link>https://zyfdegh.github.io/post/201805-latex-tutorial/</link>
+      <pubDate>Wed, 02 May 2018 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201805-latex-tutorial/</guid>
+      <description>（本文在移动设备上显示效果可能不佳）
+为什么要写 网上的教程，一搜一大片，为什么还要亲手写一篇？原因是自己在体验 LaTeX 写公式时，的确感受到这 很强，很酷。
+LaTeX 是什么 一种置标语言（标记语言）， 类似 Markdown，用纯文本实现文档排版和渲染。可写章节、表格，以及公式。 还能添加各种样式、扭曲文字，写艺术字、古字等。易导出为 PDF，mobi，HTML 等格式。
+LaTeX 用处 在学术界比较流行，尤其是数学、物理学和计算机科学界。通过一些拓展（宏包），还能制作乐谱、棋谱、 化学式、电路图等1。
+为什么还要用 LaTeX 写论文、期刊容易通过纯文本看到格式啦，如果用 Microsoft Word + MathType 的确能写，但比较相像 的格式时不易分辨，还会受版本影响。对咯，LaTeX 更美观，还易于版本控制。
+用什么写哇 推荐的一些编辑器。
+Online: https://latexbase.com/
+macOS: TexPad
+Linux: Tex Live
+Windows: MiKTeX
+开始 公式 既然 LaTeX 较擅长公式，就先从公式写起。
+用一对 $ 符来嵌入公式到当前行，比如 $E=mc^2$ , 用两对 $ 符号来在单独一行显示公式。如 $$E=mc^2$$
+一些语法规则
+ 对于键盘上能打出来的常规字符，比如 E、= 和 2 直接书写； 上标用脱字号 “^”，比如 x^2 显示为 $x^2$； 下标用下划线 “_”，比如 H_2O 显示为 $H_2O$； 特殊字符，如希腊字、希伯来字、箭头、函数名、操作符等，都有对应的名字，用 \name 表示。如 \pi 为 $\pi$； 使用 {} 来框住连在一起的表达式，比如要写 $e^{i\pi}=-1$，要用 e^{i\pi}=-1； 通过 \frac 来写除法，如 \frac{1}{2} 得到 $\frac{1}{2}$； 乘法符 ‧ 用 \cdot 来写； 要写大括号本身，需要用 \ 转义，如 {} 得到 ${}$；  从 Wikipedia 量子力学页面找了一些公式用来训练。</description>
+    </item>
+    
+    <item>
+      <title>Markdown 进阶教程</title>
+      <link>https://zyfdegh.github.io/post/201804-markdown-advanced/</link>
+      <pubDate>Sat, 28 Apr 2018 13:10:32 +0800</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201804-markdown-advanced/</guid>
+      <description>（本文在移动设备上显示效果可能不佳）
+[TOC]
+掌握了一些基础的 Markdown 语法后，便能轻松书写，但想学习更多技巧，请浏览这篇文章。
+特殊字符 如果想打出 Markdown 语法已经占用的字符，比如 *，#，| 等该怎么办？简单，在这些字符前加 上反斜线 \ 就好了，如 \*。
+\ 反斜线
+` 反引号
+* 星号
+_ 底线
+{} 花括号
+[] 方括号
+() 括弧
+# 井字号
++ 加号
+- 减号
+. 英文句点
+! 惊叹号
+删除线 ~~被删除文本~~ 被删除文本
+分行 通常当你输入一段文字时，Markdown 并不会按回车符 (Enter) 进行分行。
+We are the impact and the glue. Capable of more than we know, We call this fixer-upper home. With each year, our color fades.</description>
+    </item>
+    
+    <item>
+      <title>Evernote 笔记整理 - CentOS 中 yum 的使用</title>
+      <link>https://zyfdegh.github.io/post/201706-note-linux-yum/</link>
+      <pubDate>Fri, 09 Jun 2017 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201706-note-linux-yum/</guid>
+      <description>安装软件 yum -y install package_name
+更改源 修改 / etc/yum.repos.d/ 下面的 CentOS-Base.repo
+更改 CentOS 源为 163 的 # 进入存放源配置的文件夹 cd /etc/yum.repos.d # 备份默认源 mv ./CentOS-Base.repo ./CentOS-Base.repo.bak # 使用 wget 下载 163 的源 # http://mirrors.163.com/.help/centos.html wget http://mirrors.163.com/.help/CentOS6-Base-163.repo # 把下载下来的文件 CentOS-Base-163.repo 设置为默认源 mv CentOS6-Base-163.repo CentOS-Base.repo # 运行 yum makecache 生成缓存 yum makecache 更新缓存 yum makecache fast
+查看 yum 日志 cat /var/log/yum.log
+删除包 yum remove pkg_name
+或者
+yum erase pkg_name
+添加源 rpm -vih http://rpm.livna.org/livna-release-5.rpm</description>
+    </item>
+    
+    <item>
+      <title>Evernote 笔记整理 - Linux 中安全设置</title>
+      <link>https://zyfdegh.github.io/post/201706-note-linux-security/</link>
+      <pubDate>Fri, 09 Jun 2017 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201706-note-linux-security/</guid>
+      <description>禁止密码登录 ** 禁用前先添加公钥 **
+vi /etc/ssh/sshd_config # 查找并修改下面两项 PasswordAuthentication no # 禁止使用基于口令认证的方式登陆 PubkeyAuthentication yes # 允许使用基于密钥认证的方式登陆 systemctl restart sshd 禁止 ping echo 1 &amp;gt; /proc/sys/net/ipv4/icmp_echo_ignore_all
+恢复 echo 0 &amp;gt; /proc/sys/net/ipv4/icmp_echo_ignore_all</description>
+    </item>
+    
+    <item>
+      <title>Evernote 笔记整理 - Linux 多种格式压缩与解压</title>
+      <link>https://zyfdegh.github.io/post/201706-note-linux-compress/</link>
+      <pubDate>Fri, 09 Jun 2017 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201706-note-linux-compress/</guid>
+      <description>Linux 中文件打包、与解包，压缩与解压，多种压缩类型。
+ZIP ** 压缩 **
+zip -r archive_name.zip directory_to_compress
+** 解压 **
+unzip archive_name.zip
+TAR ** 打包 **
+tar -cvf archive_name.tar directory_to_compress
+** 解包 **
+tar -xvf archive_name.tar.gz
+解压到指定路径
+tar -xvf archive_name.tar -C /tmp/extract_here/
+TAR.GZ ** 压缩 **
+tar -czvf archive_name.tar.gz directory_to_compress
+** 查看内容 **
+tar -tzvf archive_name.tar.gz
+** 解压 **
+tar -xzvf archive_name.tar.gz
+** 提取单个文件 **
+tar -zxf archive_name.tar.gz path/to/file
+** 解压到指定路径 **
+tar -xzvf archive_name.tar.gz -C /tmp/extract_here</description>
+    </item>
+    
+    <item>
+      <title>Evernote 笔记整理 - Linux 中一些小技巧与细节优化</title>
+      <link>https://zyfdegh.github.io/post/201706-note-linux-skills/</link>
+      <pubDate>Fri, 02 Jun 2017 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201706-note-linux-skills/</guid>
+      <description>一些小技巧 vi 显示 / 取消行号 :set nu
+:set nonu
+cat 显示行号 cat -b file
+cat -n file （包括空行）
+grep 显示前后 5 行 grep -C 5 xxx
+光标移动 移动到行首「CTRL + A」
+移动单词 「CTRL + LEFT/RIGHT」
+清空一行 「CTRL + U」
+统计行数 ps | wc -l
+查看目录占用空间 du -sh folder
+按大小排序
+du -sh folder | sort -nr
+命令历史设置 添加时间、用户名 echo &amp;lsquo;export HISTTIMEFORMAT=&amp;rdquo;%F %T whoami &amp;ldquo;&amp;lsquo;&amp;raquo; /etc/profile source /etc/profile
+设置记录最大条数 编辑 / etc/profile 设置 HISTSIZE 值为 10000</description>
+    </item>
+    
+    <item>
+      <title>我是如何用 Hugo、Travis CI 和 GitHub Pages 搭建博客的?</title>
+      <link>https://zyfdegh.github.io/post/201705-how-i-setup-hugo/</link>
+      <pubDate>Wed, 17 May 2017 16:10:32 +0800</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201705-how-i-setup-hugo/</guid>
+      <description>（本文在移动设备上显示效果可能不佳）
+啰嗦一会 微博微信等软件用久了，对碎片化资讯便开始厌烦，仍想回到节奏稍慢的时代。
+一直以来想自己动手搭博客写点东西。但由于各种事（jie）情（kou），一直没有搭好。万事开头难， 尝试过不少姿势搭建博客，好用的确实有很多，但顺心的直到最近才找到。
+在一切都是刚刚开始之前，我对博客平台有下面一些期望：
+ 美观； 轻量，快速，简单； 不需要租 VPS，免去配置和维护（其实是寒碜）； 能将内容和配置存储，换一个地儿后能快速还原； 容易 DIY 和 Hacking； 支持 Markdown（格式易于控制和统一，显示代码也好看）； 用 GitHub 托管和版本控制； 能支持评论和分享就更好了。  到这里就想到了 GitHub Pages，但 GitHub 官方主推 Jekyll。照着教程，在自己 机器上试了试，安装过程就很蓝瘦。终于装好后，生成网站时又出现了问题。Google 扒了好一阵， 在 Jekyll GitHub Issue 中遇到了同样的问题，但按照上面给的方案，并没有解决我的问题。 罢了，折腾之心已死，消停了几个月。
+开发时，用 Golang 比较多，也知道 Hugo 的存在，但当时并不知道 Hugo 能够无缝支持 GitHub Pages。直到有一天还是发现了，惊喜，立刻安装试用起来。经过一 段时间摸索，一个能看的博客出锅了，就是你现在看到的样子。
+如果你像我一样，也想按着这样的方式写博文：
+ 用简单的文本编辑器（如 Vim、Atom）编写 Markdown 格式的文章； 用 Hugo 快速生成静态内容，打开 Chrome 实时预览改动； 用 Git 进行版本控制，并将博客配置、文章、主题、图片等文件提交到 GitHub； 在 push 到 GitHub 后，Travis CI 默默生成网站，并发布到 GitHub Pages。  那么，继续阅读，这篇教程正适合你。</description>
+    </item>
+    
+    <item>
+      <title>Golang Concurrency with HTTP Example</title>
+      <link>https://zyfdegh.github.io/post/201703-golang-concurrency/</link>
+      <pubDate>Mon, 06 Mar 2017 00:00:00 +0000</pubDate>
+      
+      <guid>https://zyfdegh.github.io/post/201703-golang-concurrency/</guid>
+      <description>Summary I have a server running on remote. I want to simply benchmark on one API, and get the average response time of that API. So I simply wrote a few lines of a Golang programme.
+I want to benchmark Call server API concurrently(about 1000 times at once) and see how long it takes.
+Why not use Apache ab? Well, Apache HTTP server Benchmarking tool is powerful. But It is a bit complex to learn and use, I want to do it by myself.</description>
+    </item>
+    
+  </channel>
+</rss>

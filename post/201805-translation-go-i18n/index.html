@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.64.1" />
+
+
+<title>[译] 手把手教你 Go 程序的国际化和本土化 - 独行的蚂蚁 - 博客</title>
+<meta property="og:title" content="[译] 手把手教你 Go 程序的国际化和本土化 - 独行的蚂蚁 - 博客">
+
+
+
+
+  
+
+
+
+
+<link rel="icon" href="https://zyfdegh.github.io/images/" type="image/x-icon"/>
+<link rel="stylesheet" href="https://zyfdegh.github.io/css/main.css" media="all">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Merriweather:400|Lato:400,400italic,700">
+
+    <script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+  MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+  });
+  MathJax.Hub.Queue(function() {
+    
+    
+    
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i < all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+
+  MathJax.Hub.Config({
+  
+  TeX: { equationNumbers: { autoNumber: "AMS" } }
+  });
+</script>
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="https://zyfdegh.github.io/" class="nav-logo">
+    <img src="https://zyfdegh.github.io/images/ant.png" 
+         width="50" 
+         height="50" 
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="https://zyfdegh.github.io/">Articles</a></li>
+    
+    <li><a href="https://zyfdegh.github.io/about/">About</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">8 min read</span>
+    
+
+    <h1 class="article-title">[译] 手把手教你 Go 程序的国际化和本土化</h1>
+
+    
+    <span class="article-date">May 4, 2018</span>
+    
+
+    <div class="article-content">
+      <p>原文：<a href="https://phraseapp.com/blog/posts/internationalization-i18n-go/">《A Step-by-Step Guide to Go Internationalization (i18n) &amp; Localization (l10n)》</a></p>
+<p>译者按：原文写得超详细，让我学习了 Go 中未曾使用到的但很有用的 i18n 知识，因而有了翻译文章的想法。
+在征得原文作者同意的前提下，我开始了翻译工作。为了适应中文读者，我修改了原文中部分示例代码，还将
+其中的希腊文，替换成了简体中文。</p>
+<!-- raw HTML omitted -->
+<h1 id="概述">概述</h1>
+<p>Go 是静态编译的编程语言，最近很受欢迎，因为它简单、性能好而且非常适合开发云端应用。它有强大的能够
+处理国际化（i18n）和本地化（l10n）的库，比如处理字符编码、文本转换还有特定地区的文本，但这个包的
+文档写得不够好。让我们来看看该怎么使用这个库，并且让我们的 Go 程序能适应不同区域。</p>
+<p>上面说的包是 <code>golang.org/x/text</code>，如果用得好，在你想让应用全球化时能帮上大忙。此包带有一系列
+抽象，让你翻译消息（message）、格式化、处理单复数，还有 Unicode 等更简单。</p>
+<p>本文包含两部分，一是大致了解 <code>golang.org/x/text</code> 这个包，看它提供了什么用来格式化和本地化的工具。
+由于 Go 擅长构建微服务（microservice）架构，为了不破坏这个传统，在第二部分我们将创建一个微服务
+架构的服务端程序，这将让我们对 Go 的国际化和本地化有更深刻的理解。</p>
+<p>为了写这篇教程，我将用最新的 Go 1.10，文章中的代码都已经托放于 <a href="https://github.com/PhraseApp-Blog/go-internationalization">GitHub</a>。</p>
+<p>一起开始吧！</p>
+<h1 id="包概览">包概览</h1>
+<p>Go 中大多数消息（message）要么用 <code>fmt</code> 要么通过 template 包处理。</p>
+<p><code>golang.org/x/text</code> 包含多层子包，提供了很多的工具和函数，并且用 <code>fmt</code> 风格的 API 来格式化
+字符串。来看看在实际中怎么使用。</p>
+<h2 id="消息和翻译集catalog">消息和翻译集（Catalog）</h2>
+<p>消息（message）是某些想传达给用户的的内容。每条消息根据键（key）进行区分，这可以有很多形式。
+比如可以这样创建一条消息：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">BritishEnglish</span>)
+<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;There are %v flowers in our garden.&#34;</span>, <span style="color:#ae81ff">1500</span>)
+</code></pre></div><p>当调用 NewPrinter 函数时，你要提供<strong>语言标签</strong>（language tag）。想指定语言时，就使用这些
+<a href="https://godoc.org/golang.org/x/text/language#Tag">语言标签</a>。有多种创建标签的方式，比如：</p>
+<ul>
+<li>
+<p>使用预定义的标签。如：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">Greek</span>, <span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">BrazilianPortuguese</span>
+</code></pre></div><p>完整的预定义标签在<a href="https://godoc.org/golang.org/x/text/language#Tag">这里</a>。</p>
+</li>
+<li>
+<p>从字符串解析。如：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">Make</span>(<span style="color:#e6db74">&#34;el&#34;</span>), <span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">Parse</span>(<span style="color:#e6db74">&#34;en-UK&#34;</span>)
+</code></pre></div></li>
+<li>
+<p>通过组合 Tag、Base、Script、Region、Variant, []Variant, Extension, []Extension 或
+error。比如：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#a6e22e">ja</span>, <span style="color:#a6e22e">_</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">ParseBase</span>(<span style="color:#e6db74">&#34;ja&#34;</span>)
+<span style="color:#a6e22e">jp</span>, <span style="color:#a6e22e">_</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">ParseRegion</span>(<span style="color:#e6db74">&#34;JP&#34;</span>)
+<span style="color:#a6e22e">jpLngTag</span>, <span style="color:#a6e22e">_</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">Compose</span>(<span style="color:#a6e22e">ja</span>, <span style="color:#a6e22e">jp</span>)
+<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#a6e22e">jpLngTag</span>) <span style="color:#75715e">// 打印 ja-JP
+</span></code></pre></div><p>如果你给了一个无效的字符串，会得到一个 Und，意思是未定义的语言标签。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">Compose</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">ParseRegion</span>(<span style="color:#e6db74">&#34;AL&#34;</span>))) 
+<span style="color:#75715e">// 打印 Und-AL
+</span></code></pre></div></li>
+</ul>
+<p>想了解更多有关语言的接口，看<a href="https://godoc.org/golang.org/x/text/language#pkg-index">这个文档</a>。</p>
+<p>回到刚刚的消息，我们可以使用不同语言来指定一个新的 printer，并打出格式化后的字符串。这个库将
+替你处理任何在做本地化时需要考量的差异：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+ 
+<span style="color:#f92672">import</span> (
+ <span style="color:#e6db74">&#34;golang.org/x/text/message&#34;</span>
+ <span style="color:#e6db74">&#34;golang.org/x/text/language&#34;</span>
+)
+ 
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>()  {
+ <span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">BritishEnglish</span>)
+ <span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;There are %v flowers in our garden.\n&#34;</span>, <span style="color:#ae81ff">1500</span>)
+ 
+ <span style="color:#a6e22e">p</span> = <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">Greek</span>)
+ <span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;There are %v flowers in our garden.&#34;</span>, <span style="color:#ae81ff">1500</span>)
+}
+</code></pre></div><p>如果跑这段程序，将会得到</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">➜ go run main.go
+There are 1,500 flowers in our garden.
+There are 1.500 flowers in our garden.
+</code></pre></div><p>（译者注：请留意两行输出中数字 1500 的差异。）</p>
+<p>好了，为了打印翻译后的消息，我们需要将消息加到翻译集（catalog）中，这样 <strong>Printer</strong> 就能
+根据语言标签找到它们。</p>
+<p>翻译集（Catalog）定义了翻译后字符串的集合。可以这样理解，翻译集是一组各个语言的词典，每个词典
+包含一些键，并含有相应语言的译文。要使用翻译集，我们需要先用译文来生成它们。</p>
+<p>实际操作时，译文会由翻译器的数据源自动提供。来看看我们如何手动实现：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> (
+	<span style="color:#e6db74">&#34;fmt&#34;</span>
+
+	<span style="color:#e6db74">&#34;golang.org/x/text/language&#34;</span>
+	<span style="color:#e6db74">&#34;golang.org/x/text/message&#34;</span>
+)
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">init</span>() {
+	<span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">SetString</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">Chinese</span>, <span style="color:#e6db74">&#34;%s went to %s.&#34;</span>, <span style="color:#e6db74">&#34;%s去了%s。&#34;</span>)
+	<span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">SetString</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">AmericanEnglish</span>, <span style="color:#e6db74">&#34;%s went to %s.&#34;</span>, <span style="color:#e6db74">&#34;%s is in %s.&#34;</span>)
+	<span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">SetString</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">Chinese</span>, <span style="color:#e6db74">&#34;%s has been stolen.&#34;</span>, <span style="color:#e6db74">&#34;%s被偷走了。&#34;</span>)
+	<span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">SetString</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">AmericanEnglish</span>, <span style="color:#e6db74">&#34;%s has been stolen.&#34;</span>, <span style="color:#e6db74">&#34;%s has been stolen.&#34;</span>)
+	<span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">SetString</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">Chinese</span>, <span style="color:#e6db74">&#34;How are you?&#34;</span>, <span style="color:#e6db74">&#34;你好吗?.&#34;</span>)
+}
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+	<span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">Chinese</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;%s went to %s.&#34;</span>, <span style="color:#e6db74">&#34;彼得&#34;</span>, <span style="color:#e6db74">&#34;英格兰&#34;</span>)
+	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>()
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;%s has been stolen.&#34;</span>, <span style="color:#e6db74">&#34;宝石&#34;</span>)
+	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>()
+
+	<span style="color:#a6e22e">p</span> = <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">AmericanEnglish</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;%s went to %s.&#34;</span>, <span style="color:#e6db74">&#34;Peter&#34;</span>, <span style="color:#e6db74">&#34;England&#34;</span>)
+	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>()
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;%s has been stolen.&#34;</span>, <span style="color:#e6db74">&#34;The Gem&#34;</span>)
+}
+
+</code></pre></div><p>如果运行这段程序，会得到以下输出：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">➜ go run main.go
+彼得去了英格兰。
+宝石被偷走了。
+Peter is in England.
+The Gem has been stolen.
+</code></pre></div><p>（译者注：已将原来这段程序中的希腊文替换成了中文。）</p>
+<p>注意：你在使用 <code>SetString</code> 方法（函数）时，所指定的键（key）是区分大小写的，
+也区分换行。意思是你尝试用 <code>Println</code> 或者在行尾加上 <code>\n</code> 时，就不能用了：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#a6e22e">p</span> = <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">Greek</span>)
+
+<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;%s went to %s.\n&#34;</span>, <span style="color:#e6db74">&#34;彼得&#34;</span>, <span style="color:#e6db74">&#34;英格兰&#34;</span>) 
+<span style="color:#75715e">// 打印：彼得 went to 英格兰.
+</span><span style="color:#75715e"></span><span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#e6db74">&#34;How are you?&#34;</span>)                 
+<span style="color:#75715e">// 打印：How are you?
+</span></code></pre></div><p>通常情况下， 你不需要手动创建翻译集，而是让这个库去处理。你也可以通过 <a href="https://godoc.org/golang.org/x/text/message/catalog#Builder">catalog.Builder</a>
+来让程序生成翻译集。</p>
+<h3 id="处理单复数">处理单复数</h3>
+<p>在一些情况下，你需要根据词语的单、复数而添加多个翻译后的字符串，并且要在翻译集里
+加上专门的调用才能管理好单复数的情况。子包 <code>golang.org/x/text/feature/plural</code> 里有个
+叫 <a href="https://godoc.org/golang.org/x/text/feature/plural#Selectf">SelectF</a> 的函数用来处理文本里语法的复数形式。</p>
+<p>下面我给个典型的 SelectF 使用案例：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">init</span>() {
+	<span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">Set</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">English</span>, <span style="color:#e6db74">&#34;我有 %d 个苹果&#34;</span>,
+		<span style="color:#a6e22e">plural</span>.<span style="color:#a6e22e">Selectf</span>(<span style="color:#ae81ff">1</span>, <span style="color:#e6db74">&#34;%d&#34;</span>,
+			<span style="color:#e6db74">&#34;=1&#34;</span>, <span style="color:#e6db74">&#34;I have an apple&#34;</span>,
+			<span style="color:#e6db74">&#34;=2&#34;</span>, <span style="color:#e6db74">&#34;I have two apples&#34;</span>,
+			<span style="color:#e6db74">&#34;other&#34;</span>, <span style="color:#e6db74">&#34;I have %[1]d apples&#34;</span>,
+		))
+	<span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">Set</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">English</span>, <span style="color:#e6db74">&#34;还剩余 %d 天&#34;</span>,
+		<span style="color:#a6e22e">plural</span>.<span style="color:#a6e22e">Selectf</span>(<span style="color:#ae81ff">1</span>, <span style="color:#e6db74">&#34;%d&#34;</span>,
+			<span style="color:#e6db74">&#34;one&#34;</span>, <span style="color:#e6db74">&#34;One day left&#34;</span>,
+			<span style="color:#e6db74">&#34;other&#34;</span>, <span style="color:#e6db74">&#34;%[1]d days left&#34;</span>,
+		))
+
+}
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+	<span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">English</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;我有 %d 个苹果&#34;</span>, <span style="color:#ae81ff">1</span>)
+	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>()
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;我有 %d 个苹果&#34;</span>, <span style="color:#ae81ff">2</span>)
+	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>()
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;我有 %d 个苹果&#34;</span>, <span style="color:#ae81ff">5</span>)
+	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>()
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;还剩余 %d 天&#34;</span>, <span style="color:#ae81ff">1</span>)
+	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>()
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;还剩余 %d 天&#34;</span>, <span style="color:#ae81ff">10</span>)
+	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>()
+}
+</code></pre></div><p>运行这段程序，你将得到下面输出：</p>
+<pre><code>➜ go run main.go
+I have an apple
+I have two apples
+I have 5 apples
+One day left
+10 days left
+</code></pre><p>（译者注：由于中文词语 “苹果”、“天” 既表示单数又能表示复数，而对应的英文单词是分单、复数的，
+用 “汉译英” 的方式更易向读者说明这段代码的功能。因而将<a href="https://phraseapp.com/blog/posts/internationalization-i18n-go/">原文</a>程序中的英文改成了中文，
+希腊文换成了英文。下同。）</p>
+<p>这里例子里，SelectF 能识别和支持几个量词，比如 <code>zero</code>、<code>one</code>、<code>two</code>、<code>few</code> 和 <code>many</code>，
+此外还能匹配比较符如 <code>&gt;x</code> 或 <code>&lt;x</code>。</p>
+<h3 id="插补字符串到消息中">插补字符串到消息中</h3>
+<p>还有一些情况下，你想进一步处理消息中的量词，你可以用占位符变量（placeholder variables）来
+处理一些特定的语法特性。比如说，在前面我们使用复数的例子，可以改写成这样：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">init</span>() {
+    <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">Set</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">English</span>, <span style="color:#e6db74">&#34;你迟了 %d 分钟。&#34;</span>,
+        <span style="color:#a6e22e">catalog</span>.<span style="color:#a6e22e">Var</span>(<span style="color:#e6db74">&#34;m&#34;</span>, <span style="color:#a6e22e">plural</span>.<span style="color:#a6e22e">Selectf</span>(<span style="color:#ae81ff">1</span>, <span style="color:#e6db74">&#34;%d&#34;</span>,
+            <span style="color:#e6db74">&#34;one&#34;</span>, <span style="color:#e6db74">&#34;minute&#34;</span>,
+            <span style="color:#e6db74">&#34;other&#34;</span>, <span style="color:#e6db74">&#34;minutes&#34;</span>)),
+        <span style="color:#a6e22e">catalog</span>.<span style="color:#a6e22e">String</span>(<span style="color:#e6db74">&#34;You are %[1]d ${m} late.&#34;</span>))
+}
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+	<span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">English</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;你迟了 %d 分钟。&#34;</span>, <span style="color:#ae81ff">1</span>)
+        <span style="color:#75715e">// 打印： You are 1 minute late.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>()
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;你迟了 %d 分钟。&#34;</span>, <span style="color:#ae81ff">10</span>)
+        <span style="color:#75715e">// 打印： You are 10 minutes late.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>()
+}
+</code></pre></div><p>这里 <code>catalog.Var</code> 函数的第一个参数为字符串，即 <code>m</code>，是一个特殊的标签，根据 <code>%d</code> 参数的值，
+这个标签会被一个更准确的翻译内容替换。</p>
+<h2 id="格式化货币">格式化货币</h2>
+<p>包 <code>golang.org/x/text/currency</code> 处理货币格式化。</p>
+<p>有几个有用的函数可以打印出指定地区货币的金额。下面的例子显示了几种格式化的方式：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> (
+	<span style="color:#e6db74">&#34;fmt&#34;</span>
+
+	<span style="color:#e6db74">&#34;golang.org/x/text/currency&#34;</span>
+	<span style="color:#e6db74">&#34;golang.org/x/text/language&#34;</span>
+	<span style="color:#e6db74">&#34;golang.org/x/text/message&#34;</span>
+)
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+	<span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">English</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;%d&#34;</span>, <span style="color:#a6e22e">currency</span>.<span style="color:#a6e22e">Symbol</span>(<span style="color:#a6e22e">currency</span>.<span style="color:#a6e22e">USD</span>.<span style="color:#a6e22e">Amount</span>(<span style="color:#ae81ff">0.1</span>)))
+	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>()
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;%d&#34;</span>, <span style="color:#a6e22e">currency</span>.<span style="color:#a6e22e">NarrowSymbol</span>(<span style="color:#a6e22e">currency</span>.<span style="color:#a6e22e">JPY</span>.<span style="color:#a6e22e">Amount</span>(<span style="color:#ae81ff">1.6</span>)))
+	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>()
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;%d&#34;</span>, <span style="color:#a6e22e">currency</span>.<span style="color:#a6e22e">ISO</span>.<span style="color:#a6e22e">Kind</span>(<span style="color:#a6e22e">currency</span>.<span style="color:#a6e22e">Cash</span>)(<span style="color:#a6e22e">currency</span>.<span style="color:#a6e22e">EUR</span>.<span style="color:#a6e22e">Amount</span>(<span style="color:#ae81ff">12.255</span>)))
+	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>()
+}
+</code></pre></div><p>结果会是：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">➜ go run main.go
+$ 0.10
+¥ <span style="color:#ae81ff">2</span>
+EUR 12.26
+</code></pre></div><h2 id="加载消息">加载消息</h2>
+<p>当你处理本地化工作时，通常你需要事先准备好译文以便应用程序能用上它们。你可以把这些译文文件
+当作静态资源。有几种部署程序和译文文件的方式：</p>
+<h3 id="手动设置译文字符串">手动设置译文字符串</h3>
+<p>最简单的方式是把译文构建到你的应用程序里。你必须手动创建一个数组，包含原文和译文的条目，
+在初始化时，那些消息会被加载到默认翻译集中。在你的应用里，你只能用 <code>NewPrinter</code> 函数切换区域。</p>
+<p>下面这个应用，示范了如何在初始化时加载译文：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> (
+	<span style="color:#e6db74">&#34;golang.org/x/text/feature/plural&#34;</span>
+	<span style="color:#e6db74">&#34;golang.org/x/text/language&#34;</span>
+	<span style="color:#e6db74">&#34;golang.org/x/text/message&#34;</span>
+	<span style="color:#e6db74">&#34;golang.org/x/text/message/catalog&#34;</span>
+)
+
+<span style="color:#66d9ef">type</span> <span style="color:#a6e22e">entry</span> <span style="color:#66d9ef">struct</span> {
+	<span style="color:#a6e22e">tag</span>, <span style="color:#a6e22e">key</span> <span style="color:#66d9ef">string</span>
+	<span style="color:#a6e22e">msg</span>      <span style="color:#66d9ef">interface</span>{}
+}
+
+<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">entries</span> = [<span style="color:#f92672">...</span>]<span style="color:#a6e22e">entry</span>{
+	{<span style="color:#e6db74">&#34;en&#34;</span>, <span style="color:#e6db74">&#34;Hello World&#34;</span>, <span style="color:#e6db74">&#34;Hello World&#34;</span>},
+	{<span style="color:#e6db74">&#34;zh&#34;</span>, <span style="color:#e6db74">&#34;Hello World&#34;</span>, <span style="color:#e6db74">&#34;你好世界&#34;</span>},
+	{<span style="color:#e6db74">&#34;en&#34;</span>, <span style="color:#e6db74">&#34;%d task(s) remaining!&#34;</span>, <span style="color:#a6e22e">plural</span>.<span style="color:#a6e22e">Selectf</span>(<span style="color:#ae81ff">1</span>, <span style="color:#e6db74">&#34;%d&#34;</span>,
+		<span style="color:#e6db74">&#34;=1&#34;</span>, <span style="color:#e6db74">&#34;One task remaining!&#34;</span>,
+		<span style="color:#e6db74">&#34;=2&#34;</span>, <span style="color:#e6db74">&#34;Two tasks remaining!&#34;</span>,
+		<span style="color:#e6db74">&#34;other&#34;</span>, <span style="color:#e6db74">&#34;[1]d tasks remaining!&#34;</span>,
+	)},
+	{<span style="color:#e6db74">&#34;zh&#34;</span>, <span style="color:#e6db74">&#34;%d task(s) remaining!&#34;</span>, <span style="color:#a6e22e">plural</span>.<span style="color:#a6e22e">Selectf</span>(<span style="color:#ae81ff">1</span>, <span style="color:#e6db74">&#34;%d&#34;</span>,
+		<span style="color:#e6db74">&#34;=1&#34;</span>, <span style="color:#e6db74">&#34;剩余一项任务！&#34;</span>,
+		<span style="color:#e6db74">&#34;=2&#34;</span>, <span style="color:#e6db74">&#34;剩余两项任务！&#34;</span>,
+		<span style="color:#e6db74">&#34;other&#34;</span>, <span style="color:#e6db74">&#34;剩余 [1]d 项任务！&#34;</span>,
+	)},
+}
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">init</span>() {
+	<span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">e</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> <span style="color:#a6e22e">entries</span> {
+		<span style="color:#a6e22e">tag</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">MustParse</span>(<span style="color:#a6e22e">e</span>.<span style="color:#a6e22e">tag</span>)
+		<span style="color:#66d9ef">switch</span> <span style="color:#a6e22e">msg</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">e</span>.<span style="color:#a6e22e">msg</span>.(<span style="color:#66d9ef">type</span>) {
+		<span style="color:#66d9ef">case</span> <span style="color:#66d9ef">string</span>:
+			<span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">SetString</span>(<span style="color:#a6e22e">tag</span>, <span style="color:#a6e22e">e</span>.<span style="color:#a6e22e">key</span>, <span style="color:#a6e22e">msg</span>)
+		<span style="color:#66d9ef">case</span> <span style="color:#a6e22e">catalog</span>.<span style="color:#a6e22e">Message</span>:
+			<span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">Set</span>(<span style="color:#a6e22e">tag</span>, <span style="color:#a6e22e">e</span>.<span style="color:#a6e22e">key</span>, <span style="color:#a6e22e">msg</span>)
+		<span style="color:#66d9ef">case</span> []<span style="color:#a6e22e">catalog</span>.<span style="color:#a6e22e">Message</span>:
+			<span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">Set</span>(<span style="color:#a6e22e">tag</span>, <span style="color:#a6e22e">e</span>.<span style="color:#a6e22e">key</span>, <span style="color:#a6e22e">msg</span><span style="color:#f92672">...</span>)
+		}
+	}
+}
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+	<span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">Chinese</span>)
+
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;Hello World&#34;</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Println</span>()
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;%d task(s) remaining!&#34;</span>, <span style="color:#ae81ff">2</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Println</span>()
+
+	<span style="color:#a6e22e">p</span> = <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">English</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;Hello World&#34;</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Println</span>()
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;%d task(s) remaining!&#34;</span>, <span style="color:#ae81ff">2</span>)
+
+}
+</code></pre></div><div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">➜ go run main.go
+你好世界
+剩余两项任务！
+Hello World
+Two tasks remaining!
+</code></pre></div><p>实际上，这种办法易于实现，但不太方便拓展。只适用于有少量翻译的小程序。你还得手动去设置译文，
+想要自动化很难。种种原因下，我们推荐使用自动加载消息的方式，接下来我详细说明。</p>
+<h3 id="自动加载消息">自动加载消息</h3>
+<p>一直以来，大多数本地化的框架都会把每个语言的译文分别存于文件里，这些文件会被动态加载。你可以把
+这些文件交给翻译的人，在他们搞定后，你再把译文合并到你的应用中。</p>
+<p>为了协助这个过程，Go 作者们开发了一个命令行小工具叫 <code>gotext</code>，用来管理 Go 源码中的文本。</p>
+<p>开始吧，先保证你有最新的工具：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ go get -u golang.org/x/text/cmd/gotext
+</code></pre></div><p>运行这个工具，会显示可用的命令。用 <code>help &lt;command&gt;</code> 来查看某个指令的帮助信息。</p>
+<pre><code>➜ gotext
+gotext is a tool for managing text in Go source code.
+ 
+Usage:
+ 
+        gotext command [arguments]
+ 
+The commands are:
+ 
+        update      merge translations and generate catalog
+        extract     extracts strings to be translated from code
+        rewrite     rewrites fmt functions to use a message Printer
+        generate    generates code to insert translated messages
+</code></pre><p>这篇教程里，我们要用 <strong>update</strong> 指令。这个命令会做下面两步：</p>
+<ol>
+<li>从代码中提取出要翻译的键，并写入文件中；</li>
+<li>更新代码，使得程序加载那些键到翻译集中以便使用。</li>
+</ol>
+<p>创建一个 <em>main.go</em> 文件，并调用一些 <code>Printf</code> 函数，然后再确保加了 <code>go:generate</code> 注释。</p>
+<p>（译者注：这条注释是 build constraint，斜线 // 后不加空格。）</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ touch main.go
+</code></pre></div><p><em><strong>文件</strong></em>: <em>main.go</em></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#75715e">//go:generate gotext -srclang=en update -out=catalog/catalog.go -lang=en,el
+</span><span style="color:#75715e"></span>
+<span style="color:#f92672">import</span> (
+	<span style="color:#e6db74">&#34;golang.org/x/text/language&#34;</span>
+	<span style="color:#e6db74">&#34;golang.org/x/text/message&#34;</span>
+)
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+	<span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">Greek</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;Hello world!&#34;</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Println</span>()
+
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;Hello&#34;</span>, <span style="color:#e6db74">&#34;world!&#34;</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Println</span>()
+
+	<span style="color:#a6e22e">person</span> <span style="color:#f92672">:=</span> <span style="color:#e6db74">&#34;Alex&#34;</span>
+	<span style="color:#a6e22e">place</span> <span style="color:#f92672">:=</span> <span style="color:#e6db74">&#34;Utah&#34;</span>
+
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;Hello &#34;</span>, <span style="color:#a6e22e">person</span>, <span style="color:#e6db74">&#34; in &#34;</span>, <span style="color:#a6e22e">place</span>, <span style="color:#e6db74">&#34;!&#34;</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Println</span>()
+
+	<span style="color:#75715e">// Greet everyone.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;Hello world!&#34;</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Println</span>()
+
+	<span style="color:#a6e22e">city</span> <span style="color:#f92672">:=</span> <span style="color:#e6db74">&#34;Munich&#34;</span>
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;Hello %s!&#34;</span>, <span style="color:#a6e22e">city</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Println</span>()
+
+	<span style="color:#75715e">// Person visiting a place.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;%s is visiting %s!&#34;</span>,
+		<span style="color:#a6e22e">person</span>,
+		<span style="color:#a6e22e">place</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Println</span>()
+
+	<span style="color:#75715e">// Double arguments.
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">miles</span> <span style="color:#f92672">:=</span> <span style="color:#ae81ff">1.2345</span>
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;%.2[1]f miles traveled (%[1]f)&#34;</span>, <span style="color:#a6e22e">miles</span>)
+}
+</code></pre></div><p>执行下面命令：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ mkdir catalog
+$ go generate
+</code></pre></div><p>然后加一条 import 语句，来引入 <em><strong>catalog.go</strong></em> 文件：</p>
+<p><em><strong>文件</strong></em>: <em>main.go</em></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#75715e">//go:generate gotext -srclang=en update -out=catalog/catalog.go -lang=en,el
+</span><span style="color:#75715e"></span>
+<span style="color:#f92672">import</span> (
+	<span style="color:#e6db74">&#34;golang.org/x/text/language&#34;</span>
+	<span style="color:#e6db74">&#34;golang.org/x/text/message&#34;</span>
+	<span style="color:#a6e22e">_</span> <span style="color:#e6db74">&#34;golang.org/x/text/message/catalog&#34;</span>
+)
+<span style="color:#f92672">...</span>
+</code></pre></div><p>这时，你看看项目结构，会有这些文件被创建：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ tree .
+.
+├── catalog
+│   └── catalog.go
+├── locales
+│   ├── el
+│   │   └── out.gotext.json
+│   └── en
+│       └── out.gotext.json
+├── main.go
+</code></pre></div><p><code>locales</code> 目录含有翻译消息，格式是这个库支持的。这就是你要提供翻译的地方。创建一个文件，名叫
+<code>messages.gotext.json</code> 然后在里面写入希腊文翻译。</p>
+<p><em><strong>文件</strong></em>: <em>locales/el/messages.gotext.json</em></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-json" data-lang="json">{
+  <span style="color:#f92672">&#34;language&#34;</span>: <span style="color:#e6db74">&#34;el&#34;</span>,
+  <span style="color:#f92672">&#34;messages&#34;</span>: [
+    {
+      <span style="color:#f92672">&#34;id&#34;</span>: <span style="color:#e6db74">&#34;Hello world!&#34;</span>,
+      <span style="color:#f92672">&#34;message&#34;</span>: <span style="color:#e6db74">&#34;Hello world!&#34;</span>,
+      <span style="color:#f92672">&#34;translation&#34;</span>: <span style="color:#e6db74">&#34;Γιά σου Κόσμε!&#34;</span>
+    },
+    {
+      <span style="color:#f92672">&#34;id&#34;</span>: <span style="color:#e6db74">&#34;Hello&#34;</span>,
+      <span style="color:#f92672">&#34;message&#34;</span>: <span style="color:#e6db74">&#34;Hello&#34;</span>,
+      <span style="color:#f92672">&#34;translation&#34;</span>: <span style="color:#e6db74">&#34;Γιά σας %[1]v&#34;</span>,
+      <span style="color:#f92672">&#34;placeholders&#34;</span>: [
+        {
+          <span style="color:#f92672">&#34;id&#34;</span>: <span style="color:#e6db74">&#34;World&#34;</span>,
+          <span style="color:#f92672">&#34;string&#34;</span>: <span style="color:#e6db74">&#34;%[1]v&#34;</span>,
+          <span style="color:#f92672">&#34;type&#34;</span>: <span style="color:#e6db74">&#34;string&#34;</span>,
+          <span style="color:#f92672">&#34;underlyingType&#34;</span>: <span style="color:#e6db74">&#34;string&#34;</span>,
+          <span style="color:#f92672">&#34;argNum&#34;</span>: <span style="color:#ae81ff">1</span>,
+          <span style="color:#f92672">&#34;expr&#34;</span>: <span style="color:#e6db74">&#34;\&#34;world!\&#34;&#34;</span>
+        }
+      ]
+    },
+    {
+      <span style="color:#f92672">&#34;id&#34;</span>: <span style="color:#e6db74">&#34;Hello {City}!&#34;</span>,
+      <span style="color:#f92672">&#34;message&#34;</span>: <span style="color:#e6db74">&#34;Hello {City}!&#34;</span>,
+      <span style="color:#f92672">&#34;translation&#34;</span>: <span style="color:#e6db74">&#34;Γιά σου %[1]s&#34;</span>,
+      <span style="color:#f92672">&#34;placeholders&#34;</span>: [
+        {
+          <span style="color:#f92672">&#34;id&#34;</span>: <span style="color:#e6db74">&#34;City&#34;</span>,
+          <span style="color:#f92672">&#34;string&#34;</span>: <span style="color:#e6db74">&#34;%[1]s&#34;</span>,
+          <span style="color:#f92672">&#34;type&#34;</span>: <span style="color:#e6db74">&#34;string&#34;</span>,
+          <span style="color:#f92672">&#34;underlyingType&#34;</span>: <span style="color:#e6db74">&#34;string&#34;</span>,
+          <span style="color:#f92672">&#34;argNum&#34;</span>: <span style="color:#ae81ff">1</span>,
+          <span style="color:#f92672">&#34;expr&#34;</span>: <span style="color:#e6db74">&#34;city&#34;</span>
+        }
+      ]
+    },
+    {
+      <span style="color:#f92672">&#34;id&#34;</span>: <span style="color:#e6db74">&#34;{Person} is visiting {Place}!&#34;</span>,
+      <span style="color:#f92672">&#34;message&#34;</span>: <span style="color:#e6db74">&#34;{Person} is visiting {Place}!&#34;</span>,
+      <span style="color:#f92672">&#34;translation&#34;</span>: <span style="color:#e6db74">&#34;Ο %[1]s επισκέπτεται την %[2]s&#34;</span>,
+      <span style="color:#f92672">&#34;placeholders&#34;</span>: [
+        {
+          <span style="color:#f92672">&#34;id&#34;</span>: <span style="color:#e6db74">&#34;Person&#34;</span>,
+          <span style="color:#f92672">&#34;string&#34;</span>: <span style="color:#e6db74">&#34;%[1]s&#34;</span>,
+          <span style="color:#f92672">&#34;type&#34;</span>: <span style="color:#e6db74">&#34;string&#34;</span>,
+          <span style="color:#f92672">&#34;underlyingType&#34;</span>: <span style="color:#e6db74">&#34;string&#34;</span>,
+          <span style="color:#f92672">&#34;argNum&#34;</span>: <span style="color:#ae81ff">1</span>,
+          <span style="color:#f92672">&#34;expr&#34;</span>: <span style="color:#e6db74">&#34;person&#34;</span>
+        },
+        {
+          <span style="color:#f92672">&#34;id&#34;</span>: <span style="color:#e6db74">&#34;Place&#34;</span>,
+          <span style="color:#f92672">&#34;string&#34;</span>: <span style="color:#e6db74">&#34;%[2]s&#34;</span>,
+          <span style="color:#f92672">&#34;type&#34;</span>: <span style="color:#e6db74">&#34;string&#34;</span>,
+          <span style="color:#f92672">&#34;underlyingType&#34;</span>: <span style="color:#e6db74">&#34;string&#34;</span>,
+          <span style="color:#f92672">&#34;argNum&#34;</span>: <span style="color:#ae81ff">2</span>,
+          <span style="color:#f92672">&#34;expr&#34;</span>: <span style="color:#e6db74">&#34;place&#34;</span>
+        }
+      ]
+    },
+    {
+      <span style="color:#f92672">&#34;id&#34;</span>: <span style="color:#e6db74">&#34;{Miles} miles traveled ({Miles_1})&#34;</span>,
+      <span style="color:#f92672">&#34;message&#34;</span>: <span style="color:#e6db74">&#34;{Miles} miles traveled ({Miles_1})&#34;</span>,
+      <span style="color:#f92672">&#34;translation&#34;</span>: <span style="color:#e6db74">&#34;%.2[1]f μίλια ταξίδεψε %[1]f&#34;</span>,
+      <span style="color:#f92672">&#34;placeholders&#34;</span>: [
+        {
+          <span style="color:#f92672">&#34;id&#34;</span>: <span style="color:#e6db74">&#34;Miles&#34;</span>,
+          <span style="color:#f92672">&#34;string&#34;</span>: <span style="color:#e6db74">&#34;%.2[1]f&#34;</span>,
+          <span style="color:#f92672">&#34;type&#34;</span>: <span style="color:#e6db74">&#34;float64&#34;</span>,
+          <span style="color:#f92672">&#34;underlyingType&#34;</span>: <span style="color:#e6db74">&#34;float64&#34;</span>,
+          <span style="color:#f92672">&#34;argNum&#34;</span>: <span style="color:#ae81ff">1</span>,
+          <span style="color:#f92672">&#34;expr&#34;</span>: <span style="color:#e6db74">&#34;miles&#34;</span>
+        },
+        {
+          <span style="color:#f92672">&#34;id&#34;</span>: <span style="color:#e6db74">&#34;Miles_1&#34;</span>,
+          <span style="color:#f92672">&#34;string&#34;</span>: <span style="color:#e6db74">&#34;%[1]f&#34;</span>,
+          <span style="color:#f92672">&#34;type&#34;</span>: <span style="color:#e6db74">&#34;float64&#34;</span>,
+          <span style="color:#f92672">&#34;underlyingType&#34;</span>: <span style="color:#e6db74">&#34;float64&#34;</span>,
+          <span style="color:#f92672">&#34;argNum&#34;</span>: <span style="color:#ae81ff">1</span>,
+          <span style="color:#f92672">&#34;expr&#34;</span>: <span style="color:#e6db74">&#34;miles&#34;</span>
+        }
+      ]
+    }
+  ]
+}
+</code></pre></div><p>现在执行 <code>go generate</code> 命令，并运行程序，将会看到翻译：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ go generate
+$ go run main.go
+Γιά σου Κόσμε!
+Γιά σας world!
+ 
+Γιά σου Κόσμε!
+Γιά σου Munich
+Ο Alex επισκέπτεται την Utah
+1,23 μίλια ταξίδεψε 1,234500%
+</code></pre></div><p>如果你感兴趣的话，<strong>rewrite</strong> 指令会搜索源码中调用 <code>fmt</code> 的地方，并把它们替换为 <code>p.Print</code>
+函数。举例来说，假如我们有这样一段程序：</p>
+<p><em><strong>文件</strong></em>：<em>main.go</em></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+   <span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">German</span>)
+   <span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Println</span>(<span style="color:#e6db74">&#34;Hello world&#34;</span>)
+   <span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;Hello world!&#34;</span>)
+   <span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;Hello world!\n&#34;</span>)
+}
+</code></pre></div><p>如果你运行下面的命令：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ gotext rewrite -out main.go
+</code></pre></div><p>这个文件将会变为：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+   <span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">German</span>)
+   <span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;Hello world\n&#34;</span>)
+   <span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;Hello world!&#34;</span>)
+   <span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Printf</span>(<span style="color:#e6db74">&#34;Hello world!\n&#34;</span>)
+}
+</code></pre></div><h1 id="微服务样例">微服务样例</h1>
+<p>这是本文的第二部分，我们将使用学到的 <code>golang/x/text</code> 包构建一个简单的 HTTP 服务端。该服务
+会提供一个接口（endpoint）用来接受用户的语言，作为参数。接着服务端会尝试把该参数与后台已经支持的
+语言列表匹配，最后（如果匹配上的话）会提供一个最适合该区域的翻译好的响应。</p>
+<p>首先，要确认你已安装好了所有依赖。</p>
+<p>先建好应用的骨架：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ go get -u github.com/golang/dep/cmd/dep
+$ dep init
+$ touch main.go
+</code></pre></div><p><em><strong>文件</strong></em>：<em>main.go</em></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> (
+	<span style="color:#e6db74">&#34;flag&#34;</span>
+	<span style="color:#e6db74">&#34;fmt&#34;</span>
+	<span style="color:#e6db74">&#34;html&#34;</span>
+	<span style="color:#e6db74">&#34;log&#34;</span>
+	<span style="color:#e6db74">&#34;net/http&#34;</span>
+	<span style="color:#e6db74">&#34;time&#34;</span>
+)
+
+<span style="color:#66d9ef">const</span> (
+	<span style="color:#a6e22e">httpPort</span> = <span style="color:#e6db74">&#34;8090&#34;</span>
+)
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">PrintMessage</span>(<span style="color:#a6e22e">w</span> <span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">ResponseWriter</span>, <span style="color:#a6e22e">r</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">Request</span>) {
+	<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Fprintf</span>(<span style="color:#a6e22e">w</span>, <span style="color:#e6db74">&#34;Hello, %s&#34;</span>, <span style="color:#a6e22e">html</span>.<span style="color:#a6e22e">EscapeString</span>(<span style="color:#a6e22e">r</span>.<span style="color:#a6e22e">Host</span>))
+}
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+	<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">port</span> <span style="color:#66d9ef">string</span>
+	<span style="color:#a6e22e">flag</span>.<span style="color:#a6e22e">StringVar</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">port</span>, <span style="color:#e6db74">&#34;port&#34;</span>, <span style="color:#a6e22e">httpPort</span>, <span style="color:#e6db74">&#34;http port&#34;</span>)
+	<span style="color:#a6e22e">flag</span>.<span style="color:#a6e22e">Parse</span>()
+
+	<span style="color:#a6e22e">server</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">Server</span>{
+		<span style="color:#a6e22e">Addr</span>:           <span style="color:#e6db74">&#34;:&#34;</span> <span style="color:#f92672">+</span> <span style="color:#a6e22e">port</span>,
+		<span style="color:#a6e22e">ReadTimeout</span>:    <span style="color:#ae81ff">10</span> <span style="color:#f92672">*</span> <span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">Second</span>,
+		<span style="color:#a6e22e">WriteTimeout</span>:   <span style="color:#ae81ff">10</span> <span style="color:#f92672">*</span> <span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">Second</span>,
+		<span style="color:#a6e22e">MaxHeaderBytes</span>: <span style="color:#ae81ff">1</span> <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">16</span>,
+		<span style="color:#a6e22e">Handler</span>:        <span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">HandlerFunc</span>(<span style="color:#a6e22e">PrintMessage</span>)}
+
+	<span style="color:#a6e22e">log</span>.<span style="color:#a6e22e">Fatal</span>(<span style="color:#a6e22e">server</span>.<span style="color:#a6e22e">ListenAndServe</span>())
+}
+</code></pre></div><p>这个程序还没有处理翻译。我们可以把 <code>fmt.Fprintf</code> 替换为 <code>p.Fprintf</code> ：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">PrintMessage</span>(<span style="color:#a6e22e">w</span> <span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">ResponseWriter</span>, <span style="color:#a6e22e">r</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">Request</span>) {
+   <span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">English</span>)
+   <span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Fprintf</span>(<span style="color:#a6e22e">w</span>,<span style="color:#e6db74">&#34;Hello, %v&#34;</span>, <span style="color:#a6e22e">html</span>.<span style="color:#a6e22e">EscapeString</span>(<span style="color:#a6e22e">r</span>.<span style="color:#a6e22e">Host</span>))
+}
+</code></pre></div><p>在源码中添加下列代码，然后调用 go generate 命令：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">//go:generate gotext -srclang=en update -out=catalog/catalog.go -lang=en,el
+</span></code></pre></div><div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ dep ensure -update
+$ go generate        
+el: Missing entry <span style="color:#66d9ef">for</span> <span style="color:#e6db74">&#34;Hello, {Host}&#34;</span>.
+</code></pre></div><p>给丢失的条目添加翻译：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ cp locales/el/out.gotext.json locales/el/messages.gotext.json
+</code></pre></div><p><em><strong>文件</strong></em>：<em>locales/el/messages.gotext.json</em></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-json" data-lang="json">{
+    <span style="color:#f92672">&#34;language&#34;</span>: <span style="color:#e6db74">&#34;el&#34;</span>,
+    <span style="color:#f92672">&#34;messages&#34;</span>: [
+        {
+            <span style="color:#f92672">&#34;id&#34;</span>: <span style="color:#e6db74">&#34;Hello, {Host}&#34;</span>,
+            <span style="color:#f92672">&#34;message&#34;</span>: <span style="color:#e6db74">&#34;Hello, {Host}&#34;</span>,
+            <span style="color:#f92672">&#34;translation&#34;</span>: <span style="color:#e6db74">&#34;Γιά σου %[1]v&#34;</span>,
+            <span style="color:#f92672">&#34;placeholders&#34;</span>: [
+                {
+                    <span style="color:#f92672">&#34;id&#34;</span>: <span style="color:#e6db74">&#34;Host&#34;</span>,
+                    <span style="color:#f92672">&#34;string&#34;</span>: <span style="color:#e6db74">&#34;%[1]v&#34;</span>,
+                    <span style="color:#f92672">&#34;type&#34;</span>: <span style="color:#e6db74">&#34;string&#34;</span>,
+                    <span style="color:#f92672">&#34;underlyingType&#34;</span>: <span style="color:#e6db74">&#34;string&#34;</span>,
+                    <span style="color:#f92672">&#34;argNum&#34;</span>: <span style="color:#ae81ff">1</span>,
+                    <span style="color:#f92672">&#34;expr&#34;</span>: <span style="color:#e6db74">&#34;html.EscapeString(r.Host)&#34;</span>
+                }
+            ]
+        }
+    ]
+}
+</code></pre></div><p>再次运行 <code>go generate</code> 命令，然后在在 <code>main.go</code> 中引用 <strong>catalog</strong> 包：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ go generate
+</code></pre></div><p><em><strong>文件</strong></em>：<em>main.go</em></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> (
+	<span style="color:#e6db74">&#34;html&#34;</span>
+	<span style="color:#e6db74">&#34;log&#34;</span>
+	<span style="color:#e6db74">&#34;net/http&#34;</span>
+	<span style="color:#e6db74">&#34;flag&#34;</span>
+	<span style="color:#e6db74">&#34;time&#34;</span>
+	<span style="color:#e6db74">&#34;golang.org/x/text/message&#34;</span>
+	<span style="color:#e6db74">&#34;golang.org/x/text/language&#34;</span>
+
+	<span style="color:#a6e22e">_</span> <span style="color:#e6db74">&#34;go-internationalization/catalog&#34;</span>
+)
+<span style="color:#f92672">...</span>
+</code></pre></div><p>现在为了能让程序决定切换到什么语言，我们需要添加一个 <a href="https://godoc.org/golang.org/x/text/language#Matcher">Matcher</a> 对象，这个对象会
+从我们支持的语言标签列表中，选择出一个最匹配的一个语言。</p>
+<p>从 <code>gotext</code> 工具生成的 <code>message.DefaultCatalog</code> 来新建一个 <strong>Matcher</strong>：</p>
+<p><em><strong>文件</strong></em>：<em>main.go</em></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">matcher</span> = <span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">NewMatcher</span>(<span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">DefaultCatalog</span>.<span style="color:#a6e22e">Languages</span>())
+</code></pre></div><p>添加一个函数，根据请求的参数，来匹配正确的语言。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">package</span> <span style="color:#a6e22e">main</span>
+
+<span style="color:#f92672">import</span> (
+	<span style="color:#e6db74">&#34;html&#34;</span>
+	<span style="color:#e6db74">&#34;log&#34;</span>
+	<span style="color:#e6db74">&#34;net/http&#34;</span>
+	<span style="color:#e6db74">&#34;flag&#34;</span>
+        <span style="color:#e6db74">&#34;context&#34;</span>
+	<span style="color:#e6db74">&#34;time&#34;</span>
+	<span style="color:#e6db74">&#34;golang.org/x/text/message&#34;</span>
+	<span style="color:#e6db74">&#34;golang.org/x/text/language&#34;</span>
+
+	<span style="color:#a6e22e">_</span> <span style="color:#e6db74">&#34;go-internationalization/catalog&#34;</span>
+	
+)
+
+<span style="color:#75715e">//go:generate gotext -srclang=en update -out=catalog/catalog.go -lang=en,el
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">matcher</span> = <span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">NewMatcher</span>(<span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">DefaultCatalog</span>.<span style="color:#a6e22e">Languages</span>())
+
+<span style="color:#66d9ef">type</span> <span style="color:#a6e22e">contextKey</span> <span style="color:#66d9ef">int</span>
+
+<span style="color:#66d9ef">const</span> (
+	<span style="color:#a6e22e">httpPort</span>  = <span style="color:#e6db74">&#34;8090&#34;</span>
+	<span style="color:#a6e22e">messagePrinterKey</span> <span style="color:#a6e22e">contextKey</span> = <span style="color:#ae81ff">1</span>
+)
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">withMessagePrinter</span>(<span style="color:#a6e22e">next</span> <span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">HandlerFunc</span>) <span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">HandlerFunc</span> {
+	<span style="color:#66d9ef">return</span> <span style="color:#66d9ef">func</span>(<span style="color:#a6e22e">w</span> <span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">ResponseWriter</span>, <span style="color:#a6e22e">r</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">Request</span>) {
+		<span style="color:#a6e22e">lang</span>, <span style="color:#a6e22e">ok</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">r</span>.<span style="color:#a6e22e">URL</span>.<span style="color:#a6e22e">Query</span>()[<span style="color:#e6db74">&#34;lang&#34;</span>]
+
+		<span style="color:#66d9ef">if</span> !<span style="color:#a6e22e">ok</span> <span style="color:#f92672">||</span> len(<span style="color:#a6e22e">lang</span>) &lt; <span style="color:#ae81ff">1</span> {
+			<span style="color:#a6e22e">lang</span> = append(<span style="color:#a6e22e">lang</span>, <span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">English</span>.<span style="color:#a6e22e">String</span>())
+		}
+		<span style="color:#a6e22e">tag</span>,<span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">_</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">matcher</span>.<span style="color:#a6e22e">Match</span>(<span style="color:#a6e22e">language</span>.<span style="color:#a6e22e">MustParse</span>(<span style="color:#a6e22e">lang</span>[<span style="color:#ae81ff">0</span>]))
+		<span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">NewPrinter</span>(<span style="color:#a6e22e">tag</span>)
+		<span style="color:#a6e22e">ctx</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">context</span>.<span style="color:#a6e22e">WithValue</span>(<span style="color:#a6e22e">context</span>.<span style="color:#a6e22e">Background</span>(), <span style="color:#a6e22e">messagePrinterKey</span>, <span style="color:#a6e22e">p</span>)
+
+		<span style="color:#a6e22e">next</span>.<span style="color:#a6e22e">ServeHTTP</span>(<span style="color:#a6e22e">w</span>, <span style="color:#a6e22e">r</span>.<span style="color:#a6e22e">WithContext</span>(<span style="color:#a6e22e">ctx</span>))
+	}
+}
+<span style="color:#f92672">...</span>
+</code></pre></div><p>我只在请求查询串（query string）中提供了一个参数。你可以混合 cookie 或者请求头中的
+Accept-Language 去匹配额外的语言标识。</p>
+<p>现在你只需要把处理函数 <code>PrintMessage</code> 套上 <code>withMessagePrinter</code>，然后从 <strong>context</strong> 里
+取出 printer 就好了。</p>
+<p><em><strong>文件</strong></em>：<em>main.go</em></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#f92672">...</span>
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">PrintMessage</span>(<span style="color:#a6e22e">w</span> <span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">ResponseWriter</span>, <span style="color:#a6e22e">r</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">Request</span>) {
+	<span style="color:#a6e22e">p</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">r</span>.<span style="color:#a6e22e">Context</span>().<span style="color:#a6e22e">Value</span>(<span style="color:#a6e22e">messagePrinterKey</span>).(<span style="color:#f92672">*</span><span style="color:#a6e22e">message</span>.<span style="color:#a6e22e">Printer</span>)
+	<span style="color:#a6e22e">p</span>.<span style="color:#a6e22e">Fprintf</span>(<span style="color:#a6e22e">w</span>,<span style="color:#e6db74">&#34;Hello, %v&#34;</span>, <span style="color:#a6e22e">html</span>.<span style="color:#a6e22e">EscapeString</span>(<span style="color:#a6e22e">r</span>.<span style="color:#a6e22e">Host</span>))
+}
+
+<span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+	<span style="color:#66d9ef">var</span> <span style="color:#a6e22e">port</span> <span style="color:#66d9ef">string</span>
+	<span style="color:#a6e22e">flag</span>.<span style="color:#a6e22e">StringVar</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">port</span>, <span style="color:#e6db74">&#34;port&#34;</span>, <span style="color:#a6e22e">httpPort</span>, <span style="color:#e6db74">&#34;http port&#34;</span>)
+	<span style="color:#a6e22e">flag</span>.<span style="color:#a6e22e">Parse</span>()
+
+	<span style="color:#a6e22e">server</span> <span style="color:#f92672">:=</span> <span style="color:#f92672">&amp;</span><span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">Server</span>{
+		<span style="color:#a6e22e">Addr</span>:           <span style="color:#e6db74">&#34;:&#34;</span> <span style="color:#f92672">+</span> <span style="color:#a6e22e">port</span>,
+		<span style="color:#a6e22e">ReadTimeout</span>:    <span style="color:#ae81ff">10</span> <span style="color:#f92672">*</span> <span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">Second</span>,
+		<span style="color:#a6e22e">WriteTimeout</span>:   <span style="color:#ae81ff">10</span> <span style="color:#f92672">*</span> <span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">Second</span>,
+		<span style="color:#a6e22e">MaxHeaderBytes</span>: <span style="color:#ae81ff">1</span> <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">16</span>,
+		<span style="color:#a6e22e">Handler</span>:        <span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">HandlerFunc</span>(<span style="color:#a6e22e">withMessagePrinter</span>(<span style="color:#a6e22e">PrintMessage</span>))}
+
+	<span style="color:#a6e22e">log</span>.<span style="color:#a6e22e">Fatal</span>(<span style="color:#a6e22e">server</span>.<span style="color:#a6e22e">ListenAndServe</span>())
+}
+</code></pre></div><p>启动服务，并发些请求来看看翻译是否成功：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ go run main.go
+</code></pre></div><!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<p>从现在起，世界如你所愿&hellip; 😎</p>
+<h1 id="使用-phraseapp">使用 PhraseApp</h1>
+<p>PhraseApp 支持多种语言个框架，包括 Go。它能让翻译数据的导入、导出变得简单，并且能搜索丢掉的
+翻译，很方便。最重要的是，你可以和翻译者一同协作，因为用了<a href="https://phraseapp.com/blog/posts/translation-management-why-authentic-human-translation-is-still-essential-for-localizing-software/">专业的本地化</a>，
+你的网站体验会更好。想了解 PhraseApp 的话，参考 <a href="https://phraseapp.com/docs/guides/setup/getting-started/">入门指南</a>。你有 <a href="https://phraseapp.com/signup">14 天免费试用期</a>。
+还等什么呢？</p>
+<h1 id="总结">总结</h1>
+<p>这篇文章里，我们探索了 Go 如何用 <code>golang/x/text</code> 包管理本地化，我们实现了一个样例网页服务器，
+展现了翻译过程，整合了各个知识点。由于官方文档缺少实际应用案例，我希望这篇文章解释清楚了如何向
+你的 Go 应用中以一种简单方式添加 i18n 支持。本文也作为未来的参考。</p>
+<p>但这绝不是一份终极指南，因为应用有不同的需求，领域要求也多种多样。请继续关注此主题的更多详细文章。</p>
+<hr>
+
+    </div>
+  </article>
+
+  <div id="disqus_thread"></div>
+<script type="application/javascript">
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "zyfdegh" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="https://zyfdegh.github.io/images/hugo-logo.png" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+
+    
+  </body>
+</html>
+

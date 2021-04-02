@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.64.1" />
+
+
+<title>Evernote 笔记整理 - Linux 多种格式压缩与解压 - 独行的蚂蚁 - 博客</title>
+<meta property="og:title" content="Evernote 笔记整理 - Linux 多种格式压缩与解压 - 独行的蚂蚁 - 博客">
+
+
+
+
+  
+
+
+
+
+<link rel="icon" href="https://zyfdegh.github.io/images/" type="image/x-icon"/>
+<link rel="stylesheet" href="https://zyfdegh.github.io/css/main.css" media="all">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Merriweather:400|Lato:400,400italic,700">
+
+    <script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+  MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+  });
+  MathJax.Hub.Queue(function() {
+    
+    
+    
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i < all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+
+  MathJax.Hub.Config({
+  
+  TeX: { equationNumbers: { autoNumber: "AMS" } }
+  });
+</script>
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="https://zyfdegh.github.io/" class="nav-logo">
+    <img src="https://zyfdegh.github.io/images/ant.png" 
+         width="50" 
+         height="50" 
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="https://zyfdegh.github.io/">Articles</a></li>
+    
+    <li><a href="https://zyfdegh.github.io/about/">About</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">1 min read</span>
+    
+
+    <h1 class="article-title">Evernote 笔记整理 - Linux 多种格式压缩与解压</h1>
+
+    
+    <span class="article-date">June 9, 2017</span>
+    
+
+    <div class="article-content">
+      <p>Linux 中文件打包、与解包，压缩与解压，多种压缩类型。</p>
+<h1 id="zip">ZIP</h1>
+<p>** 压缩 **</p>
+<p>zip -r archive_name.zip directory_to_compress</p>
+<p>** 解压 **</p>
+<p>unzip archive_name.zip</p>
+<h1 id="tar">TAR</h1>
+<p>** 打包 **</p>
+<p>tar -cvf archive_name.tar directory_to_compress</p>
+<p>** 解包 **</p>
+<p>tar -xvf archive_name.tar.gz</p>
+<p>解压到指定路径</p>
+<p>tar -xvf archive_name.tar -C /tmp/extract_here/</p>
+<h1 id="targz">TAR.GZ</h1>
+<p>** 压缩 **</p>
+<p>tar -czvf archive_name.tar.gz directory_to_compress</p>
+<p>** 查看内容 **</p>
+<p>tar -tzvf archive_name.tar.gz</p>
+<p>** 解压 **</p>
+<p>tar -xzvf archive_name.tar.gz</p>
+<p>** 提取单个文件 **</p>
+<p>tar -zxf archive_name.tar.gz path/to/file</p>
+<p>** 解压到指定路径 **</p>
+<p>tar -xzvf archive_name.tar.gz -C /tmp/extract_here</p>
+<h1 id="tarbz2">TAR.BZ2</h1>
+<p>** 压缩 **</p>
+<p>tar -jcvf archive_name.tar.bz2 directory_to_compress</p>
+<p>** 解压 **</p>
+<p>tar -jxvf archive_name.tar.bz2 -C /tmp/extract_here/</p>
+<h1 id="tarxz">TAR.XZ</h1>
+<p>** 压缩 **</p>
+<p>tar -cJf archive_name.tar.xz directory_to_compress</p>
+<p>** 解压 **</p>
+<p>tar -xpvf archive_name.tar.xz</p>
+<h1 id="gz">GZ</h1>
+<p>** 压缩 **</p>
+<p>gzip –c filename &gt; filename.gz</p>
+<p>** 解压 **</p>
+<p>gunzip –c filename.gz &gt; filename</p>
+<h1 id="7z">7z</h1>
+<p>安装 p7zip, p7zip-plugins</p>
+<p>** 压缩 **</p>
+<p>7za a archive_name.7z files/</p>
+<p>** 解压 **</p>
+<p>7za e archive_name.7z</p>
+<h1 id="cpio">CPIO</h1>
+<p>适用于 ASCII cpio archive 文件</p>
+<p>cpio -ivdum &lt; /boot/initramfs-3.10.0-327.4.4.el7.x86_64.img</p>
+<h1 id="rar">RAR</h1>
+<p>安装 unrar</p>
+<p>** 压缩 **</p>
+<p>unrar e file.rar</p>
+<p>** 解压 **</p>
+<p>unrar x file.rar</p>
+<h1 id="tgz">TGZ</h1>
+<p>同 TAR.GZ 文件</p>
+
+    </div>
+  </article>
+
+  <div id="disqus_thread"></div>
+<script type="application/javascript">
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "zyfdegh" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="https://zyfdegh.github.io/images/hugo-logo.png" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+
+    
+  </body>
+</html>
+

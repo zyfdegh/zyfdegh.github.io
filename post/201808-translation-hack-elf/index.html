@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.64.1" />
+
+
+<title>[译] 骇我呀：解构一个 ELF 文件 - 独行的蚂蚁 - 博客</title>
+<meta property="og:title" content="[译] 骇我呀：解构一个 ELF 文件 - 独行的蚂蚁 - 博客">
+
+
+
+
+  
+
+
+
+
+<link rel="icon" href="https://zyfdegh.github.io/images/" type="image/x-icon"/>
+<link rel="stylesheet" href="https://zyfdegh.github.io/css/main.css" media="all">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Merriweather:400|Lato:400,400italic,700">
+
+    <script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+  MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+  });
+  MathJax.Hub.Queue(function() {
+    
+    
+    
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i < all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+
+  MathJax.Hub.Config({
+  
+  TeX: { equationNumbers: { autoNumber: "AMS" } }
+  });
+</script>
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="https://zyfdegh.github.io/" class="nav-logo">
+    <img src="https://zyfdegh.github.io/images/ant.png" 
+         width="50" 
+         height="50" 
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="https://zyfdegh.github.io/">Articles</a></li>
+    
+    <li><a href="https://zyfdegh.github.io/about/">About</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">6 min read</span>
+    
+
+    <h1 class="article-title">[译] 骇我呀：解构一个 ELF 文件</h1>
+
+    
+    <span class="article-date">August 28, 2018</span>
+    
+
+    <div class="article-content">
+      <p>原文：《hackme: Deconstructing an ELF File》<br>
+作者：Manohar Vanga<br>
+地址：http://manoharvanga.com/hackme/</p>
+<p>译者按：在网上搜索 ELF 反汇编资料时，无意中发现本文，浏览了一下，作者的有趣经历，
+竟然揭开了困惑我很久的问题：编译在二进制文件中的密码安全吗？如果不，会被怎样破解。
+稍复杂的运算逻辑，又如何被反汇编后破译？</p>
+<p>于是翻译了这篇文章，与中文阅读者一同学习。</p>
+<hr>
+<p>朋友最近让我从他写的一个有点难破解的程序中找到密码，我答应了他。几个小时的短暂破解
+过程很有趣，最终我得到了密码，于是写下这篇文章记录这过程，同时也谈谈学到的相关新技术。</p>
+<p>接受这个挑战的几分钟后，我在邮件收到了一个叫 “hackme” 的二进制文件，来开始吧！如果你
+有兴趣试试，可以下载这个<a href="http://manoharvanga.com/hackme/hackme">二进制文件</a>然后回过头来看这篇文章。如果你发现
+了我没想到或没留意到的东西，请务必联系我！评论可以发到 <a href="mailto:manohar.vanga@gmail.com">manohar.vanga@gmail.com</a>，
+标题带有 [hackme]。更新：你可以发送评论到 <a href="http://news.ycombinator.com/item?id=2963332">Hacker News</a> 论坛了。</p>
+<h2 id="尝试运行">尝试运行</h2>
+<p>我试着运行这个二进制文件并输入一些随机密码。如我所料，都不行，而且打印了一些超级有用的
+信息：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ ./hackme
+Password, please? password
+Oops..
+</code></pre></div><p>搞笑的是，在我把这个文件放在 GDB 里运行时，又打了一些特意准备的信息：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ $ gdb ./hackme 
+Reading symbols from /tmp/hack/hackme...<span style="color:#f92672">(</span>no
+debugging symbols found<span style="color:#f92672">)</span>...done.
+<span style="color:#f92672">(</span>gdb<span style="color:#f92672">)</span> r
+Starting program: ./hackme 
+Fuck off! no debuggers!
+
+Program exited with code 0364.
+<span style="color:#f92672">(</span>gdb<span style="color:#f92672">)</span> 
+</code></pre></div><p>使用 ptrace 也一样：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ strace ./hackme 
+execve<span style="color:#f92672">(</span><span style="color:#e6db74">&#34;./hackme&#34;</span>, <span style="color:#f92672">[</span><span style="color:#e6db74">&#34;./hackme&#34;</span><span style="color:#f92672">]</span>, <span style="color:#f92672">[</span>/* <span style="color:#ae81ff">41</span> vars */<span style="color:#f92672">]</span><span style="color:#f92672">)</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+brk<span style="color:#f92672">(</span>0<span style="color:#f92672">)</span>                                  <span style="color:#f92672">=</span> 0x9016000
+access<span style="color:#f92672">(</span><span style="color:#e6db74">&#34;/etc/ld.so.nohwcap&#34;</span>, F_OK<span style="color:#f92672">)</span>      <span style="color:#f92672">=</span> -1 ENOENT <span style="color:#f92672">(</span>No such
+file or directory<span style="color:#f92672">)</span>
+... snip ...
+ptrace<span style="color:#f92672">(</span>PTRACE_TRACEME, 0, 0, 0<span style="color:#f92672">)</span>         <span style="color:#f92672">=</span> -1 EPERM <span style="color:#f92672">(</span>Operation
+not permitted<span style="color:#f92672">)</span>
+fstat64<span style="color:#f92672">(</span>1, <span style="color:#f92672">{</span>st_mode<span style="color:#f92672">=</span>S_IFCHR|0620, st_rdev<span style="color:#f92672">=</span>makedev<span style="color:#f92672">(</span>136, 3<span style="color:#f92672">)</span>, ...<span style="color:#f92672">}</span><span style="color:#f92672">)</span>
+<span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+mmap2<span style="color:#f92672">(</span>NULL, 4096, PROT_READ|PROT_WRITE,
+MAP_PRIVATE|MAP_ANONYMOUS, -1, 0<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> 0xb783e000
+write<span style="color:#f92672">(</span>1, <span style="color:#e6db74">&#34;Fuck off! no debuggers!\n&#34;</span>, 24Fuck off! no debuggers!
+<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">24</span>
+_exit<span style="color:#f92672">(</span>2543604<span style="color:#f92672">)</span>                          <span style="color:#f92672">=</span> ?
+</code></pre></div><h2 id="按套路来">按套路来</h2>
+<p>尽管从明文能看到密码的概率几乎为零，我还是试了一下。首先，我检查了这个二进制文件是不是 stripped：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ file hackme
+hackme: ELF 32-bit LSB executable, Intel 80386, version <span style="color:#ae81ff">1</span> <span style="color:#f92672">(</span>SYSV<span style="color:#f92672">)</span>, dynamically
+linked <span style="color:#f92672">(</span>uses shared libs<span style="color:#f92672">)</span>, <span style="color:#66d9ef">for</span> GNU/Linux 2.6.27, stripped
+</code></pre></div><p>是 stripped，似乎没办法了。GDB 对解构 stripped 二进制文件的执行逻辑已经没多大用处了。于是我又
+试着找找二进制中的字符串，看看能不能万一找到密码：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ strings hackme
+/lib/ld-linux.so.2
+libdl.so.2
+__gmon_start__
+_Jv_RegisterClasses
+dlopen
+dlsym
+libc.so.6
+_IO_stdin_used
+__libc_start_main
+random
+GLIBC_2.1
+GLIBC_2.0
+PTRh 
+QVhE
+<span style="color:#f92672">[</span>^Ph
+<span style="color:#f92672">[</span>^_<span style="color:#f92672">]</span>
+8%<span style="color:#e6db74">&#39;:!06!
+</span><span style="color:#e6db74">%!&#39;</span><span style="color:#ae81ff">460</span>
+&amp;64;<span style="color:#ae81ff">3</span>
+%<span style="color:#960050;background-color:#1e0010">&#39;</span>&lt;;!3
+UWVS
+<span style="color:#f92672">[</span>^_<span style="color:#f92672">]</span>
+Fuck off! no debuggers!
+Password, please? 
+Congratulations!
+Oops..
+</code></pre></div><p>我逐一试了上面字符串当作密码，但都不行。没什么太意外的。不过输出的东西倒是给了成功时的
+提示内容：“Congratulations!”。另外还似乎包含字符串 “libc.so.6”。hmm，有点迹象。
+用 ltrace 快速看一下这个二进制文件在干什么：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ ltrace ./hackme 
+__libc_start_main<span style="color:#f92672">(</span>0x8048645, 1, 0xbfb48a04, 0x80486b0, 0x8048720
+&lt;unfinished ...&gt;
+dlopen<span style="color:#f92672">(</span><span style="color:#e6db74">&#34;/lib/libc.so.6&#34;</span>, 2<span style="color:#f92672">)</span>
+<span style="color:#f92672">=</span> 0xb7757ae0
+dlsym<span style="color:#f92672">(</span>0xb7757ae0, <span style="color:#e6db74">&#34;ptrace&#34;</span><span style="color:#f92672">)</span>
+<span style="color:#f92672">=</span> 0x00eddf40
+dlsym<span style="color:#f92672">(</span>0xb7757ae0, <span style="color:#e6db74">&#34;scanf&#34;</span><span style="color:#f92672">)</span>
+<span style="color:#f92672">=</span> 0x00e621a0
+dlsym<span style="color:#f92672">(</span>0xb7757ae0, <span style="color:#e6db74">&#34;printf&#34;</span><span style="color:#f92672">)</span>
+<span style="color:#f92672">=</span> 0x00e5baa0
+Fuck off! no debuggers!
++++ exited <span style="color:#f92672">(</span>status 244<span style="color:#f92672">)</span> +++
+</code></pre></div><p>给了相同的提示信息，我们能看出这里发生了什么。共享库 libc 是动态加载的，ptrace、scanf 和
+printf 的地址也是通过 dlsym 获取的！可恶的玩意！</p>
+<p>更麻烦的是，strings 的输出显示了这个二进制文件在使用 random() 函数。不过由于这是个可重现的
+程序，也就是说正确密码每次都能解开，那么随机数是没有带种子的。我们下面再考虑这问题。</p>
+<p>strings 的输出还说明了二进制文件是如何识别调试环境的。在 ptrace 环境中（比如 strace，ltrace 或 gdb），
+调用 ptrace 会返回 -1。</p>
+<p>跳过这个调试障碍其实很简单，使用 LD_PRELOAD 环境变量就行了。LD_PRELOAD 变量可以提供一组自定义的
+共享库文件，在运行可执行文件时，这比其他共享库都优先执行。这是一条避免进程调用不想要的函数的捷径。
+于是我快速写了个新文件，假的 ptrace 函数：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">/* fake ptrace() */</span>
+<span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">long</span> <span style="color:#a6e22e">ptrace</span>(<span style="color:#66d9ef">int</span> x, <span style="color:#66d9ef">int</span> y, <span style="color:#66d9ef">int</span> z)
+{
+	printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">B-)</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+	<span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+}
+</code></pre></div><p>编译它：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">gcc -shared -fPIC -o fake.so fake.c
+</code></pre></div><p>接着在 strace 中运行，设置 LD_PRELOAD 为我们的假库文件。看一下发生了什么：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ strace -E LD_PRELOAD<span style="color:#f92672">=</span>./fake.so ./hackme
+execve<span style="color:#f92672">(</span><span style="color:#e6db74">&#34;./hackme&#34;</span>, <span style="color:#f92672">[</span><span style="color:#e6db74">&#34;./hackme&#34;</span><span style="color:#f92672">]</span>, <span style="color:#f92672">[</span>/* <span style="color:#ae81ff">24</span> vars */<span style="color:#f92672">]</span><span style="color:#f92672">)</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+brk<span style="color:#f92672">(</span>0<span style="color:#f92672">)</span>                                  <span style="color:#f92672">=</span> 0x9727000
+access<span style="color:#f92672">(</span><span style="color:#e6db74">&#34;/etc/ld.so.nohwcap&#34;</span>, F_OK<span style="color:#f92672">)</span>      <span style="color:#f92672">=</span> -1 ENOENT <span style="color:#f92672">(</span>No such
+file or directory<span style="color:#f92672">)</span>
+mmap2<span style="color:#f92672">(</span>NULL, 8192, PROT_READ|PROT_WRITE,
+MAP_PRIVATE|MAP_ANONYMOUS, -1, 0<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> 0xb78a6000
+open<span style="color:#f92672">(</span><span style="color:#e6db74">&#34;./fake&#34;</span>, O_RDONLY<span style="color:#f92672">)</span>                <span style="color:#f92672">=</span> <span style="color:#ae81ff">3</span>
+read<span style="color:#f92672">(</span>3,
+<span style="color:#e6db74">&#34;\177ELF\1\1\1\0\0\0\0\0\0\0\0\0\3\0\3\0\1\0\0\0\240\3\0\0004\0\0\0&#34;</span>...,
+512<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> <span style="color:#ae81ff">512</span>
+... snip ...
+MAP_PRIVATE|MAP_ANONYMOUS, -1, 0<span style="color:#f92672">)</span> <span style="color:#f92672">=</span> 0xb78a1000
+write<span style="color:#f92672">(</span>1, <span style="color:#e6db74">&#34;Password, please? &#34;</span>, 18Password, please? <span style="color:#f92672">)</span>      <span style="color:#f92672">=</span> <span style="color:#ae81ff">18</span>
+read<span style="color:#f92672">(</span>0, password
+<span style="color:#e6db74">&#34;password\n&#34;</span>, 1024<span style="color:#f92672">)</span>             <span style="color:#f92672">=</span> <span style="color:#ae81ff">9</span>
+write<span style="color:#f92672">(</span>1, <span style="color:#e6db74">&#34;Oops..\n&#34;</span>, 7Oops..
+<span style="color:#f92672">)</span>                 <span style="color:#f92672">=</span> <span style="color:#ae81ff">7</span>
+exit_group<span style="color:#f92672">(</span>7<span style="color:#f92672">)</span>                           <span style="color:#f92672">=</span> ?
+</code></pre></div><p>看起来密码缓冲区大小是 1024 字节长。我可以试着让缓冲溢出，但由于栈的随机性，需要增大到两倍（如果
+我没有记错的话，可以关掉）。在慵懒的周五，对于来说并不是容易事。更重要的是，我的目标不是破坏这程序，
+而是找到密码。</p>
+<p>看起来我剩下的选择就只有坐下来逆向二进制文件了，这并不是我在周五下午所想要的。但极客精神战胜了懒惰，
+我还是开始反汇编这个二进制文件。</p>
+<h2 id="反汇编">反汇编</h2>
+<p>我从 objdump 的输出开始（继续读，最好开一个新的浏览器标签）：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ objdump -D ./hackme &gt; out.asm
+</code></pre></div><p><a href="http://manoharvanga.com/hackme/objdumpout.txt">out.asm</a></p>
+<p>由于是 stripped 二进制，汇编的内容一团糟。我需要快速找到密码加密的逻辑。从前面运行来看，这个逻辑在
+打印 “Password, please?” 和 “Oops..” 语句之间。于是我开始在汇编代码中定位这些字符串，然后找到
+它们被使用的位置。字串 “Pa” 是 “Password, please?” 开头的两个字母，它们的十六进制数分别为 50、61。
+搜索了汇编文件，很快找到了这两个单词位置：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ grep <span style="color:#e6db74">&#34;50 61&#34;</span> objdumpout.txt
+ 8048798:	<span style="color:#ae81ff">00</span> <span style="color:#ae81ff">50</span> <span style="color:#ae81ff">61</span>             	add    %dl,0x61<span style="color:#f92672">(</span>%eax<span style="color:#f92672">)</span>
+</code></pre></div><p>这个字符串的地址是 0x8048799（注意第一个字节要被略过），在文件中定位这个地址，找到了下面代码：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh"> 804859d:       <span style="color:#ae81ff">68</span> <span style="color:#ae81ff">99</span> <span style="color:#ae81ff">87</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">08</span>          push   $0x8048799
+ 80485a2:       ff <span style="color:#ae81ff">15</span> <span style="color:#ae81ff">94</span> <span style="color:#ae81ff">99</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">08</span>       call   *0x8049994
+</code></pre></div><p>棒！意思是 PUSH 字符串的地址到栈（当作文本）再使用这个指针。我可以假定这就是 dlsym 存储的地址，用来
+给 printf 打印的变量。</p>
+<p>现在我需要找到 “Oops..” 信息，重复上面过程，也找到了这个字符串对应的代码：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh"> 8048633:       <span style="color:#ae81ff">68</span> c1 <span style="color:#ae81ff">87</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">08</span>          push   $0x80487c1
+ 8048638:       ff d0                   call   *%eax
+</code></pre></div><p>同样我也找到了 “Congratulations!” 对应位置的代码。最终，代码看起来更容易理解了：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh"> <span style="color:#75715e"># “Password, please?” 信息在这儿被打印</span>
+ 804859d:	<span style="color:#ae81ff">68</span> <span style="color:#ae81ff">99</span> <span style="color:#ae81ff">87</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">08</span>       	push   $0x8048799
+ 80485a2:	ff <span style="color:#ae81ff">15</span> <span style="color:#ae81ff">94</span> <span style="color:#ae81ff">99</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">08</span>    	call   *0x8049994
+ 80485a8:	8d <span style="color:#ae81ff">45</span> <span style="color:#ae81ff">84</span>             	lea    -0x7c<span style="color:#f92672">(</span>%ebp<span style="color:#f92672">)</span>,%eax
+ ... snip ...
+ 8048626:	<span style="color:#ae81ff">83</span> ec 0c             	sub    $0xc,%esp
+ <span style="color:#75715e"># “Congratulations!” 信息在这儿被打印</span>
+ 8048629:	<span style="color:#ae81ff">68</span> af <span style="color:#ae81ff">87</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">08</span>       	push   $0x80487af
+ 804862e:	eb <span style="color:#ae81ff">08</span>                	jmp    <span style="color:#ae81ff">8048638</span> &lt;dlopen@plt+0x268&gt;
+ 8048630:	<span style="color:#ae81ff">83</span> ec 0c             	sub    $0xc,%esp
+ <span style="color:#75715e"># “Oops..” 信息在这儿被打印</span>
+ 8048633:	<span style="color:#ae81ff">68</span> c1 <span style="color:#ae81ff">87</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">08</span>       	push   $0x80487c1
+ 8048638:	ff d0                	call   *%eax
+</code></pre></div><p>然后我快速给汇编文件加了注释（在语句下面，已译为中文），这样我能记住我的发现：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh"> 804859d:	<span style="color:#ae81ff">68</span> <span style="color:#ae81ff">99</span> <span style="color:#ae81ff">87</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">08</span>       	push   $0x8048799
+ 80485a2:	ff <span style="color:#ae81ff">15</span> <span style="color:#ae81ff">94</span> <span style="color:#ae81ff">99</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">08</span>    	call   *0x8049994
+ <span style="color:#75715e"># “Password, please?” 信息是在这儿被打印的</span>
+
+ 80485a8:	8d <span style="color:#ae81ff">45</span> <span style="color:#ae81ff">84</span>             	lea    -0x7c<span style="color:#f92672">(</span>%ebp<span style="color:#f92672">)</span>,%eax
+ <span style="color:#75715e"># 这儿可能是密码缓冲区的地址</span>
+
+ 80485ab:	5b                   	pop    %ebx
+ 80485ac:	5e                   	pop    %esi
+
+ 80485ad:	<span style="color:#ae81ff">50</span>                   	push   %eax
+ 80485ae:	<span style="color:#ae81ff">68</span> ac <span style="color:#ae81ff">87</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">08</span>       	push   $0x80487ac
+ 80485b3:	ff <span style="color:#ae81ff">15</span> <span style="color:#ae81ff">90</span> <span style="color:#ae81ff">99</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">08</span>    	call   *0x8049990
+ 80485b9:	<span style="color:#ae81ff">83</span> c4 <span style="color:#ae81ff">10</span>             	add    $0x10,%esp
+ <span style="color:#75715e"># 将密码缓冲区和字符串 &#34;%s&#34; 推到栈上，然后调用 scanf</span>
+
+  80485bc:	<span style="color:#ae81ff">31</span> c0                	xor    %eax,%eax
+ <span style="color:#75715e"># 清空 EAX.</span>
+
+ 80485be:	eb <span style="color:#ae81ff">01</span>                	jmp    80485c1 &lt;dlopen@plt+0x1f1&gt;
+ 80485c0:	<span style="color:#ae81ff">40</span>                   	inc    %eax
+ 80485c1:	<span style="color:#ae81ff">80</span> 7c <span style="color:#ae81ff">05</span> <span style="color:#ae81ff">84</span> <span style="color:#ae81ff">00</span>       	cmpb   $0x0,-0x7c<span style="color:#f92672">(</span>%ebp,%eax,1<span style="color:#f92672">)</span>
+ 80485c6:	<span style="color:#ae81ff">75</span> f8                	jne    80485c0 &lt;dlopen@plt+0x1f0&gt;
+ <span style="color:#75715e"># 算出我们输入的密码字符串长度。返回这个值到 EAX。</span>
+
+ 80485c8:	<span style="color:#ae81ff">31</span> db                	xor    %ebx,%ebx
+
+ 80485ca:	<span style="color:#ae81ff">83</span> f8 <span style="color:#ae81ff">13</span>             	cmp    $0x13,%eax
+ 80485cd:	0f <span style="color:#ae81ff">94</span> c3             	sete   %bl
+ <span style="color:#75715e"># Hmm！如果 strlen(buf) != 0x13，BL 会被设置为 1！找到了第一个提示！</span>
+
+ 80485d0:	be 0a <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>       	mov    $0xa,%esi
+ <span style="color:#75715e"># 移动数字 10 到 ESI。这是循环的开始，会进行 10 次。</span>
+
+ 80485d5:	e8 b6 fd ff ff       	call   <span style="color:#ae81ff">8048390</span> &lt;random@plt&gt;
+ <span style="color:#75715e"># 调用 random()。返回的值存到 EAX</span>
+
+ 80485da:	b9 <span style="color:#ae81ff">13</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>       	mov    $0x13,%ecx
+ 80485df:	<span style="color:#ae81ff">99</span>                   	cltd
+ 80485e0:	f7 f9                	idiv   %ecx
+ <span style="color:#75715e"># 将 EAX 中存储的随机数除以 19。EAX 是商，EDX 是余数。</span>
+
+ 80485e2:	<span style="color:#ae81ff">31</span> c0                	xor    %eax,%eax
+ <span style="color:#75715e"># 丢掉商</span>
+
+ 80485e4:	8a 8a 9c <span style="color:#ae81ff">86</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">08</span>    	mov    0x804869c<span style="color:#f92672">(</span>%edx<span style="color:#f92672">)</span>,%cl
+ <span style="color:#75715e"># Hmm，这地址看起来像某种查找表。</span>
+ <span style="color:#75715e"># 这个操作大概是 “CL = table[余数]”</span>
+ <span style="color:#75715e"># 既然余数不会大于 19，我将这个地址的前 19 个字节 dump 出来：</span>
+ <span style="color:#75715e">#     0xfb, 0x4c, 0x8d, 0x58, 0x0f, 0xd4, 0xe8, 0x94, 0x98, 0xee,</span>
+ <span style="color:#75715e">#     0x6b, 0x18, 0x30, 0xe0, 0x55, 0xc5, 0x28, 0x0e</span>
+
+ 80485ea:	0f b6 7c <span style="color:#ae81ff">15</span> <span style="color:#ae81ff">84</span>       	movzbl -0x7c<span style="color:#f92672">(</span>%ebp,%edx,1<span style="color:#f92672">)</span>,%edi
+ <span style="color:#75715e"># 这行在做 EDI = password[余数]</span>
+
+ 80485ef:	<span style="color:#ae81ff">42</span>                   	inc    %edx
+ 80485f0:	<span style="color:#ae81ff">89</span> <span style="color:#ae81ff">95</span> <span style="color:#ae81ff">74</span> ff ff ff    	mov    %edx,-0x8c<span style="color:#f92672">(</span>%ebp<span style="color:#f92672">)</span>
+ <span style="color:#75715e"># 增加余数，并存储到另一个变量</span>
+
+ 80485f6:	<span style="color:#ae81ff">31</span> d2                	xor    %edx,%edx
+ 80485f8:	eb 0c                	jmp    <span style="color:#ae81ff">8048606</span> &lt;dlopen@plt+0x236&gt;
+ 80485fa:	<span style="color:#ae81ff">69</span> c0 8d <span style="color:#ae81ff">78</span> <span style="color:#ae81ff">01</span> 6d    	imul   $0x6d01788d,%eax,%eax
+ 8048600:	<span style="color:#ae81ff">42</span>                   	inc    %edx
+ 8048601:	<span style="color:#ae81ff">05</span> <span style="color:#ae81ff">39</span> <span style="color:#ae81ff">30</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>       	add    $0x3039,%eax
+ 8048606:	3b <span style="color:#ae81ff">95</span> <span style="color:#ae81ff">74</span> ff ff ff    	cmp    -0x8c<span style="color:#f92672">(</span>%ebp<span style="color:#f92672">)</span>,%edx
+ 804860c:	7c ec                	jl     80485fa &lt;dlopen@plt+0x22a&gt;
+ <span style="color:#75715e"># 这是个怪异的循环。看起来像伪随机数生成器。</span>
+ <span style="color:#75715e"># 只要循环计数器小于上面增加过的余数，循环就在跑。</span>
+ <span style="color:#75715e"># 循环体里，执行下面内容（记住上面把 eax 重置为 0）</span>
+ <span style="color:#75715e">#     eax = eax * 0x6d01788d // 按照 Wolfram Alpha，这是个素数</span>
+ <span style="color:#75715e">#     eax += 0x3039 // 12345 的十进制形式</span>
+ <span style="color:#75715e"># 这是个无种子（或种子被设为 0）的伪随机数生成器！不错呀，但并没有意义，因为没加种子。</span>
+
+ 804860e:	<span style="color:#ae81ff">31</span> f8                	xor    %edi,%eax
+ <span style="color:#75715e"># 用伪随机值和上面存的密码（余数）进行 XOR 操作</span>
+
+ 8048610:	<span style="color:#ae81ff">38</span> c1                	cmp    %al,%cl
+ <span style="color:#75715e"># 拿 XOR 后的值的低位字节与 CL 中存的查找表条目比较</span>
+
+ 8048612:	b8 <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span> <span style="color:#ae81ff">00</span>       	mov    $0x0,%eax
+ 8048617:	0f <span style="color:#ae81ff">45</span> d8             	cmovne %eax,%ebx
+ <span style="color:#75715e"># 如果 XOR 后的低位字节不等于查找表条目，设置 EBX=0</span>
+
+ 804861a:	4e                   	dec    %esi
+ 804861b:	<span style="color:#ae81ff">75</span> b8                	jne    80485d5 &lt;dlopen@plt+0x205&gt;
+ <span style="color:#75715e"># 减小主循环计数器（那个跑 10 次的），如果还需要迭代就 JUMP</span>
+
+ 804861d:	<span style="color:#ae81ff">85</span> db                	test   %ebx,%ebx
+ 804861f:	a1 <span style="color:#ae81ff">94</span> <span style="color:#ae81ff">99</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">08</span>       	mov    0x8049994,%eax
+ 8048624:	<span style="color:#ae81ff">74</span> 0a                	je     <span style="color:#ae81ff">8048630</span> &lt;dlopen@plt+0x260&gt;
+ <span style="color:#75715e"># 最后！如果 EBX 是 0 则跳转到失败信息（略过 congratulations）！</span>
+ <span style="color:#75715e"># 如果 EBX 非零则打印 congratulations 信息！</span>
+
+ 8048626:	<span style="color:#ae81ff">83</span> ec 0c             	sub    $0xc,%esp
+
+ <span style="color:#75715e"># “Congratulations!” 信息在这儿被打印</span>
+ 8048629:	<span style="color:#ae81ff">68</span> af <span style="color:#ae81ff">87</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">08</span>       	push   $0x80487af
+ 804862e:	eb <span style="color:#ae81ff">08</span>                	jmp    <span style="color:#ae81ff">8048638</span> &lt;dlopen@plt+0x268&gt;
+ 8048630:	<span style="color:#ae81ff">83</span> ec 0c             	sub    $0xc,%esp
+
+ <span style="color:#75715e"># “Oops..” 信息在这儿被打印</span>
+ 8048633:	<span style="color:#ae81ff">68</span> c1 <span style="color:#ae81ff">87</span> <span style="color:#ae81ff">04</span> <span style="color:#ae81ff">08</span>       	push   $0x80487c1
+ 8048638:	ff d0                	call   *%eax
+</code></pre></div><p>靠！不像我想象的那么糟！将这个逻辑转换为 C 代码，然后测试，耗费了我一阵子，最终结果
+是下面这样：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span><span style="color:#75715e">#</span><span style="color:#75715e">include</span> <span style="color:#75715e">&lt;string.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>()
+{
+	<span style="color:#66d9ef">int</span> i, j, edi;
+	<span style="color:#66d9ef">char</span> buf[<span style="color:#ae81ff">50</span>], ch;
+	<span style="color:#66d9ef">char</span> out[<span style="color:#ae81ff">50</span>];
+	<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">char</span> check;
+	<span style="color:#66d9ef">int</span> ret <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>, val, len, rem;
+	<span style="color:#66d9ef">int</span> magic;
+	<span style="color:#66d9ef">int</span> k;
+	<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">char</span> arr[] <span style="color:#f92672">=</span> {<span style="color:#ae81ff">0x6a</span>, <span style="color:#ae81ff">0xfb</span>, <span style="color:#ae81ff">0x4c</span>, <span style="color:#ae81ff">0x8d</span>, <span style="color:#ae81ff">0x58</span>, <span style="color:#ae81ff">0x0f</span>, <span style="color:#ae81ff">0xd4</span>, <span style="color:#ae81ff">0xe8</span>,
+		<span style="color:#ae81ff">0x94</span>, <span style="color:#ae81ff">0x98</span>, <span style="color:#ae81ff">0xee</span>, <span style="color:#ae81ff">0x6b</span>, <span style="color:#ae81ff">0x18</span>, <span style="color:#ae81ff">0x30</span>, <span style="color:#ae81ff">0xe0</span>, <span style="color:#ae81ff">0x55</span>, <span style="color:#ae81ff">0xc5</span>, <span style="color:#ae81ff">0x28</span>,
+		<span style="color:#ae81ff">0x0e</span>};
+
+	<span style="color:#66d9ef">for</span> (i <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>; i <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">19</span>; i<span style="color:#f92672">+</span><span style="color:#f92672">+</span>)
+		out[i] <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">x</span><span style="color:#e6db74">&#39;</span>;
+	out[i] <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">\0</span><span style="color:#e6db74">&#39;</span>;
+
+	<span style="color:#66d9ef">for</span> (i <span style="color:#f92672">=</span> <span style="color:#ae81ff">10</span>; i <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">0</span>; i<span style="color:#f92672">-</span><span style="color:#f92672">-</span>) {
+		<span style="color:#66d9ef">int</span> m2;
+
+		val <span style="color:#f92672">=</span> random();
+		rem <span style="color:#f92672">=</span> val<span style="color:#f92672">%</span><span style="color:#ae81ff">19</span>;
+		check <span style="color:#f92672">=</span> arr[rem] <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xff</span>;
+		ch <span style="color:#f92672">=</span> buf[rem<span style="color:#f92672">+</span><span style="color:#f92672">+</span>];
+
+		j <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+		magic <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+		printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">rem = %d</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, rem);
+		<span style="color:#66d9ef">while</span> (j <span style="color:#f92672">&lt;</span> rem) {
+			magic <span style="color:#f92672">*</span><span style="color:#f92672">=</span> <span style="color:#ae81ff">1828812941</span>;
+			magic <span style="color:#f92672">+</span><span style="color:#f92672">=</span> <span style="color:#ae81ff">12345</span>;
+			j<span style="color:#f92672">+</span><span style="color:#f92672">+</span>;
+		}
+		m2 <span style="color:#f92672">=</span> magic;
+
+		magic <span style="color:#f92672">^</span><span style="color:#f92672">=</span> ch;
+		out[rem <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> (m2 <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xff</span>) <span style="color:#f92672">^</span> (check <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xff</span>));
+	}
+	printf(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">Password: %s</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, out);
+}
+</code></pre></div><p>来看看编译执行后的输出：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ ./decompiled
+rem <span style="color:#f92672">=</span> <span style="color:#ae81ff">3</span>
+rem <span style="color:#f92672">=</span> <span style="color:#ae81ff">16</span>
+rem <span style="color:#f92672">=</span> <span style="color:#ae81ff">4</span>
+rem <span style="color:#f92672">=</span> <span style="color:#ae81ff">4</span>
+rem <span style="color:#f92672">=</span> <span style="color:#ae81ff">11</span>
+rem <span style="color:#f92672">=</span> <span style="color:#ae81ff">9</span>
+rem <span style="color:#f92672">=</span> <span style="color:#ae81ff">11</span>
+rem <span style="color:#f92672">=</span> <span style="color:#ae81ff">12</span>
+rem <span style="color:#f92672">=</span> <span style="color:#ae81ff">3</span>
+rem <span style="color:#f92672">=</span> <span style="color:#ae81ff">8</span>
+Password: xxsaxxxpexYoxxxexxx
+</code></pre></div><p>二进制中的循环只跑了 10 次，重复去检查密码中的偏移。密码中重要的字符是那些输出中
+<strong>没有</strong>被标记 ‘x’ 的字符（我让我的程序运行时候设置成了 ‘x’）。</p>
+<p>现在是喜人的时刻！我再次运行最初的程序，并输入这个密码：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">$ ./hackme
+Password, please? xxsaxxxpexYoxxxexxx
+Congratulations!
+</code></pre></div><p>嘿嘿，有意思！成功了！</p>
+<h2 id="结论">结论</h2>
+<p>我学到了什么？</p>
+<h3 id="知汝之器">知汝之器</h3>
+<p>根据以往的知识和经验，我知道如何用各种各样工具去面对和解决难题。你越是清楚你的工具，
+就越能想出解决手头问题的办法（本例中，是如何逆向找到程序逻辑）。</p>
+<h3 id="测测水深">测测水深</h3>
+<p>我知道破译程序可能不会有什么捷径，但不论怎样，我还是试了所有简单的办法。尽管这些没有给我
+大量信息，但在我排除一些选项后，我增加了自信，也清除了后面的障碍。</p>
+<h3 id="汇编法术">汇编法术</h3>
+<p>机器指令有点困难反编译，我自己时常参照 Intel 手册，想搞明白怎么回事。不仅仅是汇编语言
+本身，我还真心建议学习 GNU 汇编器的语法。我比较熟悉 Intel 语法（如 NASM），但对 GAS 语法
+（AT&amp;T 语法）还不够精通。我找到了<a href="http://www.imada.sdu.dk/Courses/DM18/Litteratur/IntelnATT.htm">这篇文章</a>和<a href="http://sig9.com/articles/att-syntax">这一篇</a>，对于快速上手有很大帮助。</p>
+<p>对这个程序的一些感想：</p>
+<ul>
+<li>
+<p>检查密码中的少量内容没什么作用，尽管比起检查每个字符要省心一些。（注：原作者告诉我，他将循环次数
+设置为 10 是为了调试，然后忘了更改）</p>
+</li>
+<li>
+<p>使用随机数是个很好的方式，让我略微害怕，但到最后，没设种子的随机数是确定的、不变的，这样也不太有用。
+如果我写了一个不同版本的 libc，有个不一样的 random() 函数，那这程序用真实密码也不能通过了。</p>
+</li>
+<li>
+<p>实际密码是 “SesameOpenYourself!” ！我用一些无意义的字符去替换，也能正常通过。比如 “NasaJeeperYouShelby”。</p>
+</li>
+</ul>
+<p>总之，一个不错的周五下午～再说一遍哦，评论可以发到 <a href="mailto:manohar.vanga@gmail.com">manohar.vanga@gmail.com</a> 并带上标题 [hackme]。</p>
+<p>下载：<a href="http://manoharvanga.com/hackme/hackme_files.tgz">所有文件</a></p>
+
+    </div>
+  </article>
+
+  <div id="disqus_thread"></div>
+<script type="application/javascript">
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "zyfdegh" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="https://zyfdegh.github.io/images/hugo-logo.png" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+
+    
+  </body>
+</html>
+

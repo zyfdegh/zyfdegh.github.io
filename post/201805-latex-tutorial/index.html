@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.64.1" />
+
+
+<title>LaTeX 公式极简笔记 - 独行的蚂蚁 - 博客</title>
+<meta property="og:title" content="LaTeX 公式极简笔记 - 独行的蚂蚁 - 博客">
+
+
+
+
+  
+
+
+
+
+<link rel="icon" href="https://zyfdegh.github.io/images/" type="image/x-icon"/>
+<link rel="stylesheet" href="https://zyfdegh.github.io/css/main.css" media="all">
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Merriweather:400|Lato:400,400italic,700">
+
+    <script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+  MathJax.Hub.Config({
+  tex2jax: {
+    inlineMath: [['$','$'], ['\\(','\\)']],
+    displayMath: [['$$','$$']],
+    processEscapes: true,
+    processEnvironments: true,
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+    TeX: { equationNumbers: { autoNumber: "AMS" },
+         extensions: ["AMSmath.js", "AMSsymbols.js"] }
+  }
+  });
+  MathJax.Hub.Queue(function() {
+    
+    
+    
+    var all = MathJax.Hub.getAllJax(), i;
+    for(i = 0; i < all.length; i += 1) {
+        all[i].SourceElement().parentNode.className += ' has-jax';
+    }
+  });
+
+  MathJax.Hub.Config({
+  
+  TeX: { equationNumbers: { autoNumber: "AMS" } }
+  });
+</script>
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="https://zyfdegh.github.io/" class="nav-logo">
+    <img src="https://zyfdegh.github.io/images/ant.png" 
+         width="50" 
+         height="50" 
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="https://zyfdegh.github.io/">Articles</a></li>
+    
+    <li><a href="https://zyfdegh.github.io/about/">About</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">1 min read</span>
+    
+
+    <h1 class="article-title">LaTeX 公式极简笔记</h1>
+
+    
+    <span class="article-date">May 2, 2018</span>
+    
+
+    <div class="article-content">
+      <p>（本文在移动设备上显示效果可能不佳）</p>
+<h1 id="为什么要写">为什么要写</h1>
+<p>网上的教程，一搜一大片，为什么还要亲手写一篇？原因是自己在体验 LaTeX 写公式时，的确感受到这
+很强，很酷。</p>
+<h1 id="latex-是什么">LaTeX 是什么</h1>
+<p>一种置标语言（标记语言）， 类似 Markdown，用纯文本实现文档排版和渲染。可写章节、表格，以及公式。
+还能添加各种样式、扭曲文字，写艺术字、古字等。易导出为 PDF，mobi，HTML 等格式。</p>
+<h1 id="latex-用处">LaTeX 用处</h1>
+<p>在学术界比较流行，尤其是数学、物理学和计算机科学界。通过一些拓展（宏包），还能制作乐谱、棋谱、
+化学式、电路图等<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup>。</p>
+<h1 id="为什么还要用-latex">为什么还要用 LaTeX</h1>
+<p>写论文、期刊容易通过纯文本看到格式啦，如果用 Microsoft Word + MathType 的确能写，但比较相像
+的格式时不易分辨，还会受版本影响。对咯，LaTeX 更美观，还易于版本控制。</p>
+<h1 id="用什么写哇">用什么写哇</h1>
+<p>推荐的一些编辑器。</p>
+<p>Online:  <a href="https://latexbase.com/">https://latexbase.com/</a><br>
+macOS: <a href="https://www.texpad.com/osx">TexPad</a><br>
+Linux: <a href="http://www.tug.org/texlive/">Tex Live</a><br>
+Windows: <a href="https://miktex.org/">MiKTeX</a></p>
+<h1 id="开始">开始</h1>
+<h2 id="公式">公式</h2>
+<p>既然 LaTeX 较擅长公式，就先从公式写起。</p>
+<p>用一对 <code>$</code> 符来嵌入公式到当前行，比如 $E=mc^2$ ,
+用两对 <code>$</code> 符号来在单独一行显示公式。如 <code>$$E=mc^2$$</code></p>
+<p>一些语法规则</p>
+<ul>
+<li>对于键盘上能打出来的常规字符，比如 <code>E</code>、<code>=</code> 和 <code>2</code> 直接书写；</li>
+<li>上标用脱字号 “^”，比如 <code>x^2</code> 显示为 $x^2$；</li>
+<li>下标用下划线 “_”，比如 <code>H_2O</code> 显示为 $H_2O$；</li>
+<li>特殊字符，如希腊字、希伯来字、箭头、函数名、操作符等，都有对应的名字，用 <code>\name</code> 表示。如 \pi 为 $\pi$；</li>
+<li>使用 <code>{}</code> 来框住连在一起的表达式，比如要写 $e^{i\pi}=-1$，要用 <code>e^{i\pi}=-1</code>；</li>
+<li>通过 \frac 来写除法，如 \frac{1}{2} 得到 $\frac{1}{2}$；</li>
+<li>乘法符 ‧ 用 \cdot 来写；</li>
+<li>要写大括号本身，需要用 <code>\</code> 转义，如 {} 得到 ${}$；</li>
+</ul>
+<p>从 <a href="https://zh.wikipedia.org/wiki/%E9%87%8F%E5%AD%90%E5%8A%9B%E5%AD%A6">Wikipedia 量子力学</a>页面找了一些公式用来训练。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-latex" data-lang="latex"><span style="color:#e6db74">$$</span>E<span style="color:#f92672">=</span>h\nu<span style="color:#e6db74">$$</span>
+</code></pre></div><p>$$E=h\nu$$</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-latex" data-lang="latex"><span style="color:#e6db74">$$</span><span style="color:#f92672">-</span>\frac{\hbar^<span style="color:#ae81ff">2</span>}{<span style="color:#ae81ff">2</span>m}\frac{d^<span style="color:#ae81ff">2</span> \psi}{dx^<span style="color:#ae81ff">2</span>}<span style="color:#f92672">=</span>E\psi<span style="color:#e6db74">$$</span>
+</code></pre></div><p>$$-\frac{\hbar^2}{2m}\frac{d^2 \psi}{dx^2}=E\psi$$</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-latex" data-lang="latex"><span style="color:#e6db74">$$</span>\hat{p}_x<span style="color:#f92672">=</span><span style="color:#f92672">-</span>i\hbar\frac{d}{dx}<span style="color:#e6db74">$$</span>
+</code></pre></div><p>$$\hat{p}_x=-i\hbar\frac{d}{dx}$$</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-latex" data-lang="latex"><span style="color:#e6db74">$$</span>\frac{<span style="color:#ae81ff">1</span>}{<span style="color:#ae81ff">2</span>m}\hat{p}_x^<span style="color:#ae81ff">2</span><span style="color:#f92672">=</span>E<span style="color:#e6db74">$$</span>
+</code></pre></div><p>$$\frac{1}{2m}\hat{p}_x^2=E$$</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-latex" data-lang="latex"><span style="color:#e6db74">$$</span>\psi<span style="color:#f92672">(</span>x<span style="color:#f92672">)</span><span style="color:#f92672">=</span>Ae^{ikx}<span style="color:#f92672">+</span>Be^{<span style="color:#f92672">-</span>ikx}<span style="color:#e6db74">$$</span>
+</code></pre></div><p>$$\psi(x)=Ae^{ikx}+Be^{-ikx}$$</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-latex" data-lang="latex"><span style="color:#e6db74">$$</span>E<span style="color:#f92672">=</span>\frac{\hbar^<span style="color:#ae81ff">2</span> k^<span style="color:#ae81ff">2</span>}{<span style="color:#ae81ff">2</span>m}<span style="color:#e6db74">$$</span>
+</code></pre></div><p>$$E=\frac{\hbar^2 k^2}{2m}$$</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-latex" data-lang="latex"><span style="color:#e6db74">$$</span>\psi<span style="color:#f92672">(</span>x<span style="color:#f92672">)</span><span style="color:#f92672">=</span>C\sin kx<span style="color:#f92672">+</span>D\cos kx<span style="color:#e6db74">$$</span>
+</code></pre></div><p>$$\psi(x)=C\sin kx+D\cos kx$$</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-latex" data-lang="latex"><span style="color:#e6db74">$$</span>\psi<span style="color:#f92672">(</span><span style="color:#ae81ff">0</span><span style="color:#f92672">)</span><span style="color:#f92672">=</span><span style="color:#ae81ff">0</span><span style="color:#f92672">=</span>C\sin <span style="color:#ae81ff">0</span><span style="color:#f92672">+</span>D\cos <span style="color:#ae81ff">0</span><span style="color:#f92672">=</span>D<span style="color:#e6db74">$$</span>
+</code></pre></div><p>$$\psi(0)=0=C\sin 0+D\cos 0=D$$</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-latex" data-lang="latex"><span style="color:#e6db74">$$</span>\psi<span style="color:#f92672">(</span>L<span style="color:#f92672">)</span><span style="color:#f92672">=</span><span style="color:#ae81ff">0</span><span style="color:#f92672">=</span>C\sin kL<span style="color:#e6db74">$$</span>
+</code></pre></div><p>$$\psi(L)=0=C\sin kL$$</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-latex" data-lang="latex"><span style="color:#e6db74">$$</span>k<span style="color:#f92672">=</span>\frac{n\pi}{L}$ \qquad $n<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>,<span style="color:#ae81ff">2</span>,<span style="color:#ae81ff">3</span>,....<span style="color:#e6db74">$$</span>
+</code></pre></div><p>$$k=\frac{n\pi}{L}$ \qquad $n=1,2,3,&hellip;.$$</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-latex" data-lang="latex"><span style="color:#e6db74">$$</span>E<span style="color:#f92672">=</span>\frac{\hbar^<span style="color:#ae81ff">2</span> \pi^<span style="color:#ae81ff">2</span> n^<span style="color:#ae81ff">2</span>}{<span style="color:#ae81ff">2</span>mL^<span style="color:#ae81ff">2</span>}<span style="color:#f92672">=</span>\frac{n^<span style="color:#ae81ff">2</span>h^<span style="color:#ae81ff">2</span>}{<span style="color:#ae81ff">8</span>mL^<span style="color:#ae81ff">2</span>}<span style="color:#e6db74">$$</span>
+</code></pre></div><p>$$E=\frac{\hbar^2 \pi^2 n^2}{2mL^2}=\frac{n^2h^2}{8mL^2}$$</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-latex" data-lang="latex"><span style="color:#e6db74">$$</span>V<span style="color:#f92672">(</span>x<span style="color:#f92672">)</span><span style="color:#f92672">=</span>\frac{<span style="color:#ae81ff">1</span>}{<span style="color:#ae81ff">2</span>}m\omega^<span style="color:#ae81ff">2</span>x^<span style="color:#ae81ff">2</span><span style="color:#e6db74">$$</span>
+</code></pre></div><p>$$V(x)=\frac{1}{2}m\omega^2x^2$$</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-latex" data-lang="latex"><span style="color:#e6db74">$$</span>\psi<span style="color:#f92672">(</span>x<span style="color:#f92672">)</span><span style="color:#f92672">=</span>\sqrt{\frac{<span style="color:#ae81ff">1</span>}{<span style="color:#ae81ff">2</span>^n n<span style="color:#f92672">!</span>}}\cdot
+\left<span style="color:#f92672">(</span> \frac{m\omega}{\pi\hbar} \right<span style="color:#f92672">)</span>^{\frac{<span style="color:#ae81ff">1</span>}{<span style="color:#ae81ff">4</span>}}\cdot
+ e^{<span style="color:#f92672">-</span>\frac{m\omega x^<span style="color:#ae81ff">2</span>}{<span style="color:#ae81ff">2</span>\hbar}}\cdot 
+ H_n \left<span style="color:#f92672">(</span> \sqrt{\frac{m\omega}{\hbar}x} \right<span style="color:#f92672">)</span><span style="color:#e6db74">$$</span>
+</code></pre></div><p>$$\psi(x)=\sqrt{\frac{1}{2^n n!}}\cdot
+\left( \frac{m\omega}{\pi\hbar} \right)^{\frac{1}{4}}\cdot
+e^{-\frac{m\omega x^2}{2\hbar}}\cdot
+H_n \left( \sqrt{\frac{m\omega}{\hbar}x} \right)$$</p>
+<p>看着挺牛，可有些符号我不认得，不知道名字怎么打出来？</p>
+<p>数学符号可查这个文档 <a href="https://reu.dimacs.rutgers.edu/Symbols.pdf">LaTeX Mathematical Symbols</a>.</p>
+<!-- raw HTML omitted -->
+<p>文档挺全的，怎么快速查？</p>
+<p>还有个叫 <a href="http://detexify.kirelabs.org/classify.html">Detexify</a> 的网站，能识别手写的符号，然后得到对应的名称。🧐</p>
+<!-- raw HTML omitted -->
+<section class="footnotes" role="doc-endnotes">
+<hr>
+<ol>
+<li id="fn:1" role="doc-endnote">
+<p>维基百科 - LaTeX 趣味应用 <a href="https://zh.wikipedia.org/wiki/LaTeX">https://zh.wikipedia.org/wiki/LaTeX</a> <a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#x21a9;&#xfe0e;</a></p>
+</li>
+</ol>
+</section>
+
+    </div>
+  </article>
+
+  <div id="disqus_thread"></div>
+<script type="application/javascript">
+    var disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "zyfdegh" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="https://zyfdegh.github.io/images/hugo-logo.png" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+
+    
+  </body>
+</html>
+
